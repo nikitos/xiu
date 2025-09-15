@@ -96,7 +96,7 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - run: sudo apt install musl-tools pkg-config libssl-dev gcc-multilib
+      - run: sudo apt install cmake clang musl-tools pkg-config libssl-dev gcc-multilib
         if: startsWith(matrix.os, 'ubuntu')
 
       - name: Set up project
