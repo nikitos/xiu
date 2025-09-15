@@ -5,25 +5,21 @@ use {
 };
 
 pub struct Ts {
-    ts_number: u32,
     live_path: String,
 }
 
 impl Ts {
-    pub fn new(app_name: String, stream_name: String) -> Self {
-        let live_path = format!("./{app_name}/{stream_name}");
+    pub fn new(_app_name: String, stream_name: String) -> Self {
+        let live_path = format!("/data/{stream_name}");
         fs::create_dir_all(live_path.clone()).unwrap();
 
         Self {
-            ts_number: 0,
-            live_path,
+            live_path
         }
     }
-    pub fn write(&mut self, data: BytesMut) -> Result<(String, String), MediaError> {
-        let ts_file_name = format!("{}.ts", self.ts_number);
+    pub fn write(&mut self, data: BytesMut, sequence_no: u32) -> Result<(String, String), MediaError> {
+        let ts_file_name = format!("{}.ts", sequence_no);
         let ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
-        self.ts_number += 1;
-
         let mut ts_file_handler = File::create(ts_file_path.clone())?;
         ts_file_handler.write_all(&data[..])?;
 

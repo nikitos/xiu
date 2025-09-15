@@ -520,8 +520,11 @@ pub struct StreamsHub {
 }
 
 impl StreamsHub {
-    pub fn new(notifier: Option<Arc<dyn Notifier>>) -> Self {
-        let (event_producer, event_consumer) = mpsc::unbounded_channel();
+    pub fn new(
+            notifier: Option<Arc<dyn Notifier>>,
+            event_producer: StreamHubEventSender,
+            event_consumer: StreamHubEventReceiver,
+        ) -> Self {
         let (client_producer, _) = broadcast::channel(100);
 
         Self {
@@ -773,6 +776,11 @@ impl StreamsHub {
                     if let Err(err) = self.request(&identifier, sender) {
                         log::error!("event_loop request error: {}", err);
                     }
+                }
+                StreamHubEvent::OnHls { identifier: _ , segment: _ } => {
+                    if let Some(notifier) = &self.notifier {
+                        notifier.on_hls_notify(&message).await;
+                    } 
                 }
             }
         }

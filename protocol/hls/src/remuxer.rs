@@ -39,7 +39,7 @@ impl HlsRemuxer {
                             app_name,
                             stream_name,
                             self.event_producer.clone(),
-                            5,
+                        5,
                             self.need_record,
                         );
 

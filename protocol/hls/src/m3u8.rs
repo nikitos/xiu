@@ -1,40 +1,13 @@
 use {
-    super::{errors::MediaError, ts::Ts},
+    super::{errors::MediaError, ts::Ts, utils}, 
     bytes::BytesMut,
+    streamhub::{define::{Segment}},
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
 
-pub struct Segment {
-    /*ts duration*/
-    pub duration: i64,
-    pub discontinuity: bool,
-    /*ts name*/
-    pub name: String,
-    path: String,
-    pub is_eof: bool,
-}
-
-impl Segment {
-    pub fn new(
-        duration: i64,
-        discontinuity: bool,
-        name: String,
-        path: String,
-        is_eof: bool,
-    ) -> Self {
-        Self {
-            duration,
-            discontinuity,
-            name,
-            path,
-            is_eof,
-        }
-    }
-}
-
 pub struct M3u8 {
     version: u16,
-    sequence_no: u64,
+    sequence_no: u32,
     /*What duration should media files be?
     A duration of 10 seconds of media per file seems to strike a reasonable balance for most broadcast content.
     http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8*/
@@ -63,10 +36,10 @@ impl M3u8 {
         stream_name: String,
         need_record: bool,
     ) -> Self {
-        let m3u8_folder = format!("./{app_name}/{stream_name}");
+        let m3u8_folder = format!("/data/{stream_name}");
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
 
-        let live_m3u8_name = format!("{stream_name}.m3u8");
+        let live_m3u8_name = format!("{app_name}.m3u8");
         let vod_m3u8_name = if need_record {
             format!("vod_{stream_name}.m3u8")
         } else {
@@ -75,7 +48,7 @@ impl M3u8 {
 
         let mut m3u8 = Self {
             version: 3,
-            sequence_no: 0,
+            sequence_no: utils::current_time(),
             duration,
             live_ts_count,
             segments: VecDeque::new(),
@@ -100,8 +73,9 @@ impl M3u8 {
         discontinuity: bool,
         is_eof: bool,
         ts_data: BytesMut,
-    ) -> Result<(), MediaError> {
+    ) -> Result<Segment, MediaError> {
         let segment_count = self.segments.len();
+        self.sequence_no = utils::current_time();
 
         if segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
@@ -109,19 +83,19 @@ impl M3u8 {
                 self.ts_handler.delete(segment.path);
             }
 
-            self.sequence_no += 1;
         }
         self.duration = std::cmp::max(duration, self.duration);
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data)?;
-        let segment = Segment::new(duration, discontinuity, ts_name, ts_path, is_eof);
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no)?;
+        // notify hls?
+        let segment = Segment::new(duration, discontinuity, ts_name.clone(), ts_path.clone(), is_eof);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);
         }
 
-        self.segments.push_back(segment);
+        self.segments.push_back(segment.clone());
 
-        Ok(())
+        Ok(segment)
     }
 
     pub fn clear(&mut self) -> Result<(), MediaError> {

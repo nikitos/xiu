@@ -256,6 +256,10 @@ pub enum StreamHubEventMessage {
         identifier: StreamIdentifier,
         info: PublisherInfo,
     },
+    OnHls {
+        identifier: StreamIdentifier,
+        segment: Segment,
+    },
     NotSupport {},
 }
 
@@ -264,6 +268,34 @@ pub enum StreamHubEventMessage {
 pub enum RelayType {
     Pull,
     Push,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Segment {
+    pub duration: i64,
+    pub discontinuity: bool,
+    /*ts name*/
+    pub name: String,
+    pub path: String,
+    pub is_eof: bool,
+}
+
+impl Segment {
+    pub fn new(
+        duration: i64,
+        discontinuity: bool,
+        name: String,
+        path: String,
+        is_eof: bool,
+    ) -> Self {
+        Self {
+            duration,
+            discontinuity,
+            name,
+            path,
+            is_eof,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -318,6 +350,10 @@ pub enum StreamHubEvent {
         identifier: StreamIdentifier,
         sender: InformationSender,
     },
+    OnHls {
+        identifier: StreamIdentifier,
+        segment: Segment, 
+    },
 }
 
 impl StreamHubEvent {
@@ -349,6 +385,10 @@ impl StreamHubEvent {
             StreamHubEvent::UnPublish { identifier, info } => StreamHubEventMessage::UnPublish {
                 identifier: identifier.clone(),
                 info: info.clone(),
+            },
+            StreamHubEvent::OnHls { identifier, segment } => StreamHubEventMessage::OnHls {
+                identifier: identifier.clone(),
+                segment: segment.clone(),
             },
             _ => StreamHubEventMessage::NotSupport {},
         }

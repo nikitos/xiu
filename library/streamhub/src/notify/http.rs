@@ -1,7 +1,7 @@
 use crate::notify::Notifier;
 use reqwest::Client;
 use async_trait::async_trait;
-use crate::define::{StreamHubEventMessage};
+use crate::define::{PublisherInfo, StreamHubEventMessage, StreamHubEventSender, StreamHubEvent};
 
 macro_rules! serialize_event {
     ($message:expr) => {{
@@ -23,6 +23,8 @@ pub struct HttpNotifier {
     on_unpublish_url: Option<String>,
     on_play_url: Option<String>,
     on_stop_url: Option<String>,
+    on_hls_url: Option<String>,
+    event_producer: StreamHubEventSender
 }
 
 impl HttpNotifier {
@@ -31,6 +33,8 @@ impl HttpNotifier {
         on_unpublish_url: Option<String>,
         on_play_url: Option<String>,
         on_stop_url: Option<String>,
+        on_hls_url: Option<String>,
+        event_producer: StreamHubEventSender, 
     ) -> Self {
         Self {
             request_client: reqwest::Client::new(),
@@ -38,12 +42,25 @@ impl HttpNotifier {
             on_unpublish_url,
             on_play_url,
             on_stop_url,
+            on_hls_url,
+            event_producer
         }
     }
 }
 
 #[async_trait]
 impl Notifier for HttpNotifier {
+    async fn kick_off_client(&self, event: &StreamHubEventMessage) {
+        if let  StreamHubEventMessage::Publish { identifier, info} = &event {
+            let PublisherInfo { id, pub_type: _, pub_data_type: _, notify_info: _  } = &info; 
+            let hub_event = StreamHubEvent::ApiKickClient { id: id.clone() };
+            if let Err(err) = self.event_producer.send(hub_event) {
+                log::error!("send notify kick_off_client event error: {}", err);
+            }
+            log::info!("kick from hook: {:?}", identifier);
+        }
+    }
+
     async fn on_publish_notify(&self, event: &StreamHubEventMessage) {
         if let Some(on_publish_url) = &self.on_publish_url {
             match self
@@ -55,6 +72,7 @@ impl Notifier for HttpNotifier {
             {
                 Err(err) => {
                     log::error!("on_publish error: {}", err);
+                    self.kick_off_client(event).await;
                 }
                 Ok(response) => {
                     log::info!("on_publish success: {:?}", response);
@@ -119,4 +137,25 @@ impl Notifier for HttpNotifier {
             }
         }
     }
+
+    async fn on_hls_notify(&self, event: &StreamHubEventMessage) {
+        if let Some(on_hls_url) = &self.on_hls_url {
+            match self
+                .request_client
+                .post(on_hls_url)
+                .body(serialize_event!(event))
+                .send()
+                .await
+            {
+                Err(err) => {
+                    log::error!("on_hls error: {}", err);
+                    // self.kick_off_client(event).await;
+                }
+                Ok(response) => {
+                    log::info!("on_hls success: {:?}", response);
+                }
+            }
+        }
+    }
+
 }
