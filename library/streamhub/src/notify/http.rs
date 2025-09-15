@@ -72,9 +72,11 @@ impl Notifier for HttpNotifier {
             {
                 Err(err) => {
                     log::error!("on_publish error: {}", err);
-                    self.kick_off_client(event).await;
                 }
                 Ok(response) => {
+                    if response.status() != 200 {
+                        self.kick_off_client(event).await;
+                    }
                     log::info!("on_publish success: {:?}", response);
                 }
             }

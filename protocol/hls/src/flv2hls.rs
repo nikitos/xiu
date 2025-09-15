@@ -126,10 +126,10 @@ impl Flv2HlsRemuxer {
                 pid = self.video_pid;
                 payload.extend_from_slice(&data.data[..]);
 
-                log::info!("dts: {} selfdts: {} duration: {}", dts, self.last_ts_dts, self.duration); 
+                // log::info!("dts: {} selfdts: {} duration: {}", dts, self.last_ts_dts, self.duration); 
 
                 if data.frame_type == frame_type::KEY_FRAME {
-                    log::info!("enter keyframe: {}", data.frame_type); 
+                    // log::info!("enter keyframe: {}", data.frame_type); 
                     flags = MPEG_FLAG_IDR_FRAME;
                     if dts - self.last_ts_dts >= self.duration * 1000 {
                         self.need_new_segment = true;
