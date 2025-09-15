@@ -160,7 +160,7 @@ jobs:
       - name: Release
         uses: svenstaro/upload-release-action@v2
         with:
-          repo_token: ${{ secrets.ACCESS_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: target/${{ matrix.target }}/release/xiu${{ env.EXE }}
           tag: ${{ github.ref_name }}
           asset_name: xiu-${{ steps.extract_version.outputs.version }}-${{ matrix.target }}${{ env.EXE }}
