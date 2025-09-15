@@ -72,11 +72,11 @@ jobs:
             compress: true
             cargo_flags: ""
 
-          # supported
-          - os: ubuntu-22.04
-            target: x86_64-apple-darwin
-            compress: true
-            cargo_flags: ""
+          # # supported
+          # - os: ubuntu-22.04
+          #  target: x86_64-apple-darwin
+          #  compress: true
+          #  cargo_flags: ""
 
           ## - os: macos-latest
           ##   target: aarch64-apple-darwin
