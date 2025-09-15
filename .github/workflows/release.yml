@@ -17,13 +17,13 @@ jobs:
       matrix:
         include:
           # supported
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
             compress: true
             cargo_flags: ""
 
           # supported
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             compress: true
             cargo_flags: ""
@@ -34,7 +34,7 @@ jobs:
           #  cargo_flags: ""
 
           # supported
-          - os: ubuntu-22.04
+          - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
             compress: true
             cargo_flags: ""
@@ -45,10 +45,10 @@ jobs:
           #  cargo_flags: ""
 
           # supported
-          - os: ubuntu-22.04
-            target: armv7-unknown-linux-gnueabihf
-            compress: true
-            cargo_flags: ""
+          #- os: ubuntu-22.04
+          #  target: armv7-unknown-linux-gnueabihf
+          #  compress: true
+          #  cargo_flags: ""
 
           #- os: ubuntu-latest
           #  target: arm-unknown-linux-musleabihf
@@ -61,16 +61,16 @@ jobs:
           ##  cargo_flags: "--no-default-features"
 
           # supported
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            compress: true
-            cargo_flags: ""
+          #- os: windows-latest
+          #  target: x86_64-pc-windows-msvc
+          #  compress: true
+          #  cargo_flags: ""
 
           # supported
-          - os: windows-latest
-            target: i686-pc-windows-msvc
-            compress: true
-            cargo_flags: ""
+          #- os: windows-latest
+          #  target: i686-pc-windows-msvc
+          #  compress: true
+          #  cargo_flags: ""
 
           # # supported
           # - os: ubuntu-22.04
@@ -84,10 +84,10 @@ jobs:
           ##   cargo_flags: ""
 
           # supported
-          - os: ubuntu-22.04
-            target: x86_64-unknown-freebsd
-            compress: false
-            cargo_flags: ""
+          #- os: ubuntu-latest
+          #  target: x86_64-unknown-freebsd
+          #  compress: false
+          #  cargo_flags: ""
 
     steps:
       - name: Checkout code
@@ -157,21 +157,6 @@ jobs:
           echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
         shell: bash
 
-      - name: Install CHANGELOG parser
-        uses: taiki-e/install-action@parse-changelog
-
-      - name: Get CHANGELOG entry
-        run: parse-changelog ./application/xiu/CHANGELOG.md ${{ steps.extract_version.outputs.version }} | tee changelog_entry
-        if: startsWith(github.ref_name, 'v') && github.ref_type == 'tag'
-        shell: bash
-
-      - name: Read changelog entry from file
-        id: changelog_entry
-        uses: juliangruber/read-file-action@v1
-        with:
-          path: ./changelog_entry
-        if: startsWith(github.ref_name, 'v') && github.ref_type == 'tag'
-
       - name: Release
         uses: svenstaro/upload-release-action@v2
         with:
@@ -179,7 +164,6 @@ jobs:
           file: target/${{ matrix.target }}/release/xiu${{ env.EXE }}
           tag: ${{ github.ref_name }}
           asset_name: xiu-${{ steps.extract_version.outputs.version }}-${{ matrix.target }}${{ env.EXE }}
-          body: ${{ steps.changelog_entry.outputs.content }}
         if: startsWith(github.ref_name, 'v') && github.ref_type == 'tag'
 
   # Build docker images and upload to docker hub
