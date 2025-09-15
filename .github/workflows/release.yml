@@ -23,7 +23,7 @@ jobs:
             cargo_flags: ""
 
           # supported
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             compress: true
             cargo_flags: ""
@@ -34,7 +34,7 @@ jobs:
           #  cargo_flags: ""
 
           # supported
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target: aarch64-unknown-linux-gnu
             compress: true
             cargo_flags: ""
@@ -45,7 +45,7 @@ jobs:
           #  cargo_flags: ""
 
           # supported
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target: armv7-unknown-linux-gnueabihf
             compress: true
             cargo_flags: ""
@@ -73,7 +73,7 @@ jobs:
             cargo_flags: ""
 
           # supported
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target: x86_64-apple-darwin
             compress: true
             cargo_flags: ""
@@ -84,7 +84,7 @@ jobs:
           ##   cargo_flags: ""
 
           # supported
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             target: x86_64-unknown-freebsd
             compress: false
             cargo_flags: ""
