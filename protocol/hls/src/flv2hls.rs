@@ -1,5 +1,5 @@
 use {
-    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, bytes::BytesMut, streamhub::{define::{StreamHubEvent, StreamHubEventSender}, stream::StreamIdentifier}, xflv::{
+    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, bytes::BytesMut, config::HlsConfig, streamhub::{define::{StreamHubEvent, StreamHubEventSender}, stream::StreamIdentifier}, xflv::{
         define::{frame_type, FlvData},
         demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
     }, xmpegts::{
@@ -37,13 +37,10 @@ pub struct Flv2HlsRemuxer {
 
 impl Flv2HlsRemuxer {
     pub fn new(
-        duration: i64,
         app_name: String,
         stream_name: String,
-        need_record: bool,
-        path: String,
-        aof_ratio: i64,
-        event_producer: Option<StreamHubEventSender>
+        hls_config: Option<HlsConfig>,
+        event_producer: Option<StreamHubEventSender>,
     ) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
@@ -52,7 +49,17 @@ impl Flv2HlsRemuxer {
         let video_pid = ts_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
             .unwrap();
-
+        
+        let duration = hls_config
+            .as_ref() 
+            .and_then(|config| config.fragment)
+            .unwrap_or(5);
+        
+        let aof_ratio = hls_config
+            .as_ref() 
+            .and_then(|config| config.aof_ratio)
+            .unwrap_or(5);
+        
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
             audio_demuxer: FlvAudioTagDemuxer::new(),
@@ -70,8 +77,8 @@ impl Flv2HlsRemuxer {
 
             video_pid,
             audio_pid,
-
-            m3u8_handler: M3u8::new(duration, 6, app_name.clone(), stream_name.clone(), need_record, path),
+        
+            m3u8_handler: M3u8::new(duration, app_name.clone(), stream_name.clone(), hls_config),
 
             app_name,
             stream_name,
