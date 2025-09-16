@@ -32,7 +32,6 @@ pub struct Flv2HlsRemuxer {
     stream_name: String,
     event_producer: Option<StreamHubEventSender>,
 
-    path: String,
     aof_ratio: i64, 
 }
 
@@ -77,7 +76,6 @@ impl Flv2HlsRemuxer {
             app_name,
             stream_name,
             event_producer,
-            path,
             aof_ratio,
         }
     }
