@@ -130,26 +130,12 @@ jobs:
           strip: false # We're stripping already in Cargo.toml
         if: ${{ matrix.compress }}
 
-      - name: Copy Files
-        if: ${{ !startsWith(matrix.os, 'windows') }}
-        run: |
-          echo ${GITHUB_WORKSPACE} 
-          ls -lrth 
-          cp -rf "./application/xiu/src/config/examples" "target/${{ matrix.target }}/release/"
-          cp -f "./protocol/webrtc/src/clients/index.html" "target/${{ matrix.target }}/release/"
-          cp -f "./protocol/webrtc/src/clients/whep.js" "target/${{ matrix.target }}/release/"
-          cp -f "./docker/start.sh" "target/${{ matrix.target }}/release/"
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target }}
           path: |
             target/${{ matrix.target }}/release/xiu${{ env.EXE }}
-            target/${{ matrix.target }}/release/examples
-            target/${{ matrix.target }}/release/index.html
-            target/${{ matrix.target }}/release/whep.js
-            target/${{ matrix.target }}/release/start.sh
 
       - name: Get version from tag
         id: extract_version
