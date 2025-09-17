@@ -159,5 +159,4 @@ impl Notifier for HttpNotifier {
             }
         }
     }
-
 }

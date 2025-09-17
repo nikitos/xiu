@@ -1,8 +1,10 @@
 use {
-    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, bytes::BytesMut, config::HlsConfig, streamhub::{define::{StreamHubEvent, StreamHubEventSender}, stream::StreamIdentifier}, xflv::{
+    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, bytes::BytesMut, config::HlsConfig, xflv::{
         define::{frame_type, FlvData},
         demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
-    }, xmpegts::{
+    },
+    streamhub::{define::{StreamHubEventSender, StreamHubEvent}, stream::StreamIdentifier},
+    xmpegts::{
         define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
         ts::TsMuxer,
     }
@@ -178,7 +180,15 @@ impl Flv2HlsRemuxer {
             }
             let data = self.ts_muxer.get_data();
 
-            let segment = self.m3u8_handler
+            if let Some(segment) = self.m3u8_handler.segments.back() {
+                let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
+                let hub_event = StreamHubEvent::OnHls { identifier: identifier.clone(), segment: segment.clone() };
+                if let Err(err) = self.event_producer.clone().unwrap().send(hub_event) {
+                    log::error!("send notify on_hls event error: {}", err);
+                } 
+                log::info!("on_hls success: {:?}", identifier);
+            }
+            self.m3u8_handler
                 .add_segment(dts - self.last_ts_dts, discontinuity, false, data)?;
             self.m3u8_handler.refresh_playlist()?;
 
@@ -186,13 +196,6 @@ impl Flv2HlsRemuxer {
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
             self.need_new_segment = false;
-            
-            let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
-            let hub_event = StreamHubEvent::OnHls { identifier: identifier.clone(), segment };
-            if let Err(err) = self.event_producer.clone().expect("REASON").send(hub_event) {
-                log::error!("send notify on_hls event error: {}", err);
-            } 
-            log::info!("on_hls success: {:?}", identifier);
         }
 
         self.last_dts = dts;

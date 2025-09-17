@@ -17,7 +17,7 @@ pub struct M3u8 {
     The normal recommendation is 3, but the optimum number may be larger.*/
     live_ts_count: usize,
 
-    segments: VecDeque<Segment>,
+    pub segments: VecDeque<Segment>,
 
     m3u8_folder: String,
     live_m3u8_name: String,
@@ -89,7 +89,7 @@ impl M3u8 {
         discontinuity: bool,
         is_eof: bool,
         ts_data: BytesMut,
-    ) -> Result<Segment, MediaError> {
+    ) -> Result<(), MediaError> {
         let segment_count = self.segments.len();
         self.sequence_no = utils::current_time();
 
@@ -111,7 +111,7 @@ impl M3u8 {
 
         self.segments.push_back(segment.clone());
 
-        Ok(segment)
+        Ok(())
     }
 
     pub fn clear(&mut self) -> Result<(), MediaError> {
