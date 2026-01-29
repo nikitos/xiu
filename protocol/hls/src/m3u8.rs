@@ -1,36 +1,11 @@
 use {
     super::{errors::MediaError, ts::Ts},
+    config::HlsConfig,
     bytes::BytesMut,
     std::{collections::VecDeque, fs, fs::File, io::Write},
+    streamhub::define::Segment,
 };
 
-pub struct Segment {
-    /*ts duration*/
-    pub duration: i64,
-    pub discontinuity: bool,
-    /*ts name*/
-    pub name: String,
-    path: String,
-    pub is_eof: bool,
-}
-
-impl Segment {
-    pub fn new(
-        duration: i64,
-        discontinuity: bool,
-        name: String,
-        path: String,
-        is_eof: bool,
-    ) -> Self {
-        Self {
-            duration,
-            discontinuity,
-            name,
-            path,
-            is_eof,
-        }
-    }
-}
 
 pub struct M3u8 {
     version: u16,
@@ -43,7 +18,7 @@ pub struct M3u8 {
     The normal recommendation is 3, but the optimum number may be larger.*/
     live_ts_count: usize,
 
-    segments: VecDeque<Segment>,
+    pub segments: VecDeque<Segment>,
 
     m3u8_folder: String,
     live_m3u8_name: String,
@@ -58,15 +33,30 @@ pub struct M3u8 {
 impl M3u8 {
     pub fn new(
         duration: i64,
-        live_ts_count: usize,
         app_name: String,
         stream_name: String,
-        need_record: bool,
+        hls_config: Option<HlsConfig>,
     ) -> Self {
-        let m3u8_folder = format!("./{app_name}/{stream_name}");
-        fs::create_dir_all(m3u8_folder.clone()).unwrap();
 
+        let path = hls_config
+            .as_ref() 
+            .and_then(|config| config.path.clone())
+            .unwrap_or("./".to_string());
+
+        let m3u8_folder = format!("{path}{app_name}/{stream_name}");
+        fs::create_dir_all(m3u8_folder.clone()).unwrap();
         let live_m3u8_name = format!("{stream_name}.m3u8");
+
+        let need_record = hls_config
+            .as_ref() 
+            .and_then(|config| Some(config.need_record))
+            .unwrap_or(false);
+
+        let live_ts_count = hls_config
+            .as_ref() 
+            .and_then(|config| config.live_ts_count)
+            .unwrap_or(6); 
+
         let vod_m3u8_name = if need_record {
             format!("vod_{stream_name}.m3u8")
         } else {
@@ -79,9 +69,9 @@ impl M3u8 {
             duration,
             live_ts_count,
             segments: VecDeque::new(),
-            m3u8_folder,
+            m3u8_folder: m3u8_folder.clone(),
             live_m3u8_name,
-            ts_handler: Ts::new(app_name, stream_name),
+            ts_handler: Ts::new(m3u8_folder),
             // record,
             need_record,
             vod_m3u8_content: String::default(),

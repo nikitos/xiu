@@ -72,6 +72,7 @@ impl Service {
                     httpnotifier.on_unpublish.clone(),
                     httpnotifier.on_play.clone(),
                     httpnotifier.on_stop.clone(),
+                    httpnotifier.on_hls.clone(), 
                 )))
             }
         } else {
@@ -321,9 +322,8 @@ impl Service {
     }
 
     async fn start_hls(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
-        let hls_cfg = &self.cfg.hls;
 
-        if let Some(hls_cfg_value) = hls_cfg {
+        if let Some(hls_cfg_value) = &self.cfg.hls {
             if !hls_cfg_value.enabled {
                 return Ok(());
             }
@@ -333,7 +333,7 @@ impl Service {
             let mut hls_remuxer = HlsRemuxer::new(
                 cient_event_consumer,
                 event_producer,
-                hls_cfg_value.need_record,
+                self.cfg.hls.clone(),
             );
 
             tokio::spawn(async move {

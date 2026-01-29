@@ -75,6 +75,10 @@ impl Config {
                 port: hls_port,
                 need_record: false,
                 auth: None,
+                path: None,
+                fragment: None,
+                aof_ratio: None,
+                live_ts_count: None,
             });
         }
 
@@ -148,6 +152,10 @@ pub struct HlsConfig {
     //record or not
     pub need_record: bool,
     pub auth: Option<AuthConfig>,
+    pub path: Option<String>,
+    pub fragment: Option<i64>,
+    pub aof_ratio: Option<i64>,
+    pub live_ts_count: Option<usize>,
 }
 
 pub enum LogLevel {
@@ -183,6 +191,7 @@ pub struct HttpNotifierConfig {
     pub on_unpublish: Option<String>,
     pub on_play: Option<String>,
     pub on_stop: Option<String>,
+    pub on_hls: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

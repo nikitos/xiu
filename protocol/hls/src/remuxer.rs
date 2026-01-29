@@ -1,5 +1,6 @@
 use {
     super::{errors::HlsError, flv_data_receiver::FlvDataReceiver},
+    config::HlsConfig,
     streamhub::{
         define::{BroadcastEvent, BroadcastEventReceiver, StreamHubEventSender},
         stream::StreamIdentifier,
@@ -9,19 +10,19 @@ use {
 pub struct HlsRemuxer {
     client_event_consumer: BroadcastEventReceiver,
     event_producer: StreamHubEventSender,
-    need_record: bool,
+    hls_config: Option<HlsConfig>,
 }
 
 impl HlsRemuxer {
     pub fn new(
         consumer: BroadcastEventReceiver,
         event_producer: StreamHubEventSender,
-        need_record: bool,
+        hls_config: Option<HlsConfig>
     ) -> Self {
         Self {
             client_event_consumer: consumer,
             event_producer,
-            need_record,
+            hls_config,
         }
     }
 
@@ -39,8 +40,7 @@ impl HlsRemuxer {
                             app_name,
                             stream_name,
                             self.event_producer.clone(),
-                            5,
-                            self.need_record,
+                            self.hls_config.clone(),
                         );
 
                         tokio::spawn(async move {

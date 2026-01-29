@@ -5,6 +5,7 @@ use {
         errors::{HlsError, HlsErrorValue},
         flv2hls::Flv2HlsRemuxer,
     },
+    config::HlsConfig,
     std::time::Duration,
     streamhub::{
         define::{
@@ -34,8 +35,7 @@ impl FlvDataReceiver {
         app_name: String,
         stream_name: String,
         event_producer: StreamHubEventSender,
-        duration: i64,
-        need_record: bool,
+        hls_config: Option<HlsConfig>,
     ) -> Self {
         let (_, data_consumer) = mpsc::unbounded_channel();
         let subscriber_id = Uuid::new(RandomDigitCount::Four);
@@ -44,8 +44,8 @@ impl FlvDataReceiver {
             app_name: app_name.clone(),
             stream_name: stream_name.clone(),
             data_consumer,
-            event_producer,
-            media_processor: Flv2HlsRemuxer::new(duration, app_name, stream_name, need_record),
+            event_producer: event_producer.clone(),
+            media_processor: Flv2HlsRemuxer::new(app_name, stream_name, hls_config, Some(event_producer)),
             subscriber_id,
         }
     }
