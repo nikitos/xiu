@@ -24,7 +24,7 @@ pub struct HttpNotifier {
     on_play_url: Option<String>,
     on_stop_url: Option<String>,
     on_hls_url: Option<String>,
-    event_producer: StreamHubEventSender
+    event_producer: StreamHubEventSender,
 }
 
 impl HttpNotifier {
@@ -43,24 +43,13 @@ impl HttpNotifier {
             on_play_url,
             on_stop_url,
             on_hls_url,
-            event_producer
+            event_producer,
         }
     }
 }
 
 #[async_trait]
 impl Notifier for HttpNotifier {
-    async fn kick_off_client(&self, event: &StreamHubEventMessage) {
-        if let  StreamHubEventMessage::Publish { identifier, info} = &event {
-            let PublisherInfo { id, pub_type: _, pub_data_type: _, notify_info: _  } = &info; 
-            let hub_event = StreamHubEvent::ApiKickClient { id: id.clone() };
-            if let Err(err) = self.event_producer.send(hub_event) {
-                log::error!("send notify kick_off_client event error: {}", err);
-            }
-            log::info!("kick from hook: {:?}", identifier);
-        }
-    }
-
     async fn on_publish_notify(&self, event: &StreamHubEventMessage) {
         if let Some(on_publish_url) = &self.on_publish_url {
             match self
@@ -157,6 +146,17 @@ impl Notifier for HttpNotifier {
                     log::info!("on_hls success: {:?}", response);
                 }
             }
+        }
+    }
+
+    async fn kick_off_client(&self, event: &StreamHubEventMessage) {
+        if let  StreamHubEventMessage::Publish { identifier, info} = &event {
+            let PublisherInfo { id, pub_type: _, pub_data_type: _, notify_info: _  } = &info; 
+            let hub_event = StreamHubEvent::ApiKickClient { id: id.clone() };
+            if let Err(err) = self.event_producer.send(hub_event) {
+                log::error!("send notify kick_off_client event error: {}", err);
+            }
+            log::info!("kick from hook: {:?}", identifier);
         }
     }
 }

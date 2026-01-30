@@ -65,7 +65,6 @@ impl Service {
 
     pub async fn run(&mut self) -> Result<()> {
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
-
         let notifier: Option<Arc<dyn Notifier>> = if let Some(httpnotifier) = &self.cfg.httpnotify {
             if !httpnotifier.enabled {
                 None
