@@ -96,6 +96,11 @@ jobs:
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install deps (ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+
       - run: sudo apt install cmake clang musl-tools pkg-config libssl-dev gcc-multilib libopus-dev
         if: startsWith(matrix.os, 'ubuntu')
 
