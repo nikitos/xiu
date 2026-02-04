@@ -248,6 +248,7 @@ jobs:
           build-args: |
             GIT_VERSION=${{ env.GIT_VERSION }}
             GIT_COMMIT=${{ github.sha }}
+            VERSION=${{ needs.release.outputs.version }}
           platforms: linux/amd64,linux/arm64/v8
 
       #- name: podman build linux/arm64 (alpine edition)
