@@ -4,7 +4,7 @@ WORKDIR /app
 
 RUN apt install libopus0
 
-ARG TARGETARCH
+ARG TARGETPLATFORM
 
 #бинарники c артефактов cборки
 COPY --chmod=755 target/x86_64-unknown-linux-gnu/release/xiu /tmp/xiu_amd64
@@ -12,10 +12,10 @@ COPY --chmod=755 target/aarch64-unknown-linux-gnu/release/xiu /tmp/xiu_arm64
 
 # Выбираем нужный для конкретной платформы
 RUN set -eux; \
-    case "$TARGETARCH" in \
-      amd64) mv /tmp/xiu_amd64 /app/xiu ;; \
-      arm64) mv /tmp/xiu_arm64 /app/xiu ;; \
-      *) echo "Unsupported TARGETARCH=$TARGETARCH" >&2; exit 1 ;; \
+    case "$TARGETPLATFORM" in \
+      linux/amd64) mv /tmp/xiu_amd64 /app/xiu ;; \
+      linux/arm64*) mv /tmp/xiu_arm64 /app/xiu ;; \
+      *) echo "Unsupported TARGETPLATFORM=$TARGETPLATFORM" >&2; exit 1 ;; \
     esac; \
     chmod 755 /app/xiu; \
     rm -f /tmp/xiu_*
