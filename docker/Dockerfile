@@ -2,6 +2,7 @@ FROM ubuntu:latest
 
 WORKDIR /app
 
+RUN apt update
 RUN apt install libopus0
 
 ARG TARGETPLATFORM
