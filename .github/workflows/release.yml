@@ -45,10 +45,10 @@ jobs:
           #  cargo_flags: ""
 
           # supported
-          #- os: ubuntu-22.04
-          #  target: armv7-unknown-linux-gnueabihf
-          #  compress: true
-          #  cargo_flags: ""
+          - os: ubuntu-22.04
+            target: armv7-unknown-linux-gnueabihf
+            compress: true
+            cargo_flags: ""
 
           #- os: ubuntu-latest
           #  target: arm-unknown-linux-musleabihf
