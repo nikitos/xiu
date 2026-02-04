@@ -2,7 +2,9 @@ FROM ubuntu:latest
 
 WORKDIR /app
 
-ARG TARGET_TRIPLE
+RUN apt install libopus0
+
+ARG TARGETARCH
 
 #бинарники c артефактов cборки
 COPY --chmod=755 target/x86_64-unknown-linux-gnu/release/xiu /tmp/xiu_amd64
@@ -17,11 +19,3 @@ RUN set -eux; \
     esac; \
     chmod 755 /app/xiu; \
     rm -f /tmp/xiu_*
-
-
-COPY --chmod=755 protocol/webrtc/src/clients/index.html /app/index.html
-COPY --chmod=755 protocol/webrtc/src/clients/whep.js /app/whep.js
-
-COPY --chmod=755 library/config/examples/config.toml /app/config.toml
-
-COPY --chmod=755 docker/start.sh /app/start.sh
