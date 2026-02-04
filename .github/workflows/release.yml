@@ -205,7 +205,7 @@ jobs:
         uses: docker/metadata-action@v5.7.0
         with:
           images: |
-            ghcr.io/nikitos/tusd
+            ghcr.io/nikitos/xiu
           tags: |
             type=sha
             type=semver,pattern=v{{version}}
@@ -226,6 +226,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
+          context: .
           builder: ${{ steps.buildx.outputs.name }}
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
