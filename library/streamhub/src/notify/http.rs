@@ -34,7 +34,8 @@ impl HttpNotifier {
         on_play_url: Option<String>,
         on_stop_url: Option<String>,
         on_hls_url: Option<String>,
-        event_producer: StreamHubEventSender, 
+        event_producer: StreamHubEventSender,
+
     ) -> Self {
         Self {
             request_client: reqwest::Client::new(),

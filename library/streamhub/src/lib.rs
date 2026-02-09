@@ -521,9 +521,9 @@ pub struct StreamsHub {
 
 impl StreamsHub {
     pub fn new(
-            notifier: Option<Arc<dyn Notifier>>,
-            event_producer: StreamHubEventSender,
-            event_consumer: StreamHubEventReceiver,
+        notifier: Option<Arc<dyn Notifier>>,
+        event_producer: StreamHubEventSender,
+        event_consumer: StreamHubEventReceiver,
         ) -> Self {
         let (client_producer, _) = broadcast::channel(100);
 
