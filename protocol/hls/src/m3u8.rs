@@ -90,7 +90,7 @@ impl M3u8 {
         is_eof: bool,
         ts_data: BytesMut,
     ) -> Result<(), MediaError> {
-        let segment_count = self.segments.len();
+        let segment_count: usize = self.segments.len();
         self.sequence_no = utils::current_time();
 
         if segment_count >= self.live_ts_count {
@@ -103,7 +103,7 @@ impl M3u8 {
         self.duration = std::cmp::max(duration, self.duration);
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no)?;
         // notify hls?
-        let segment = Segment::new(duration, discontinuity, ts_name.clone(), ts_path.clone(), is_eof);
+        let segment = Segment::new(duration, discontinuity, segment_count, ts_name.clone(), ts_path.clone(), is_eof);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);
