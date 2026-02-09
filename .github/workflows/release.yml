@@ -45,10 +45,10 @@ jobs:
           #  cargo_flags: ""
 
           # supported
-          #- os: ubuntu-22.04
-          #  target: armv7-unknown-linux-gnueabihf
-          #  compress: true
-          #  cargo_flags: ""
+          - os: ubuntu-22.04
+            target: armv7-unknown-linux-gnueabihf
+            compress: true
+            cargo_flags: ""
 
           #- os: ubuntu-latest
           #  target: arm-unknown-linux-musleabihf
@@ -95,6 +95,11 @@ jobs:
 
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+
+      - name: Install deps (ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
 
       - run: sudo apt install cmake clang musl-tools pkg-config libssl-dev gcc-multilib libopus-dev
         if: startsWith(matrix.os, 'ubuntu')
@@ -165,47 +170,54 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download artifact aarch64-unknown-linux-gnu
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: aarch64-unknown-linux-gnu
           path: target/aarch64-unknown-linux-gnu/release
 
       - name: Download artifact x86_64-unknown-linux-gnu
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: x86_64-unknown-linux-gnu
           path: target/x86_64-unknown-linux-gnu/release
 
       - name: Download artifact armv7-unknown-linux-gnueabihf
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: armv7-unknown-linux-gnueabihf
           path: target/armv7-unknown-linux-gnueabihf/release
 
       #- name: Download artifact aarch64-unknown-linux-musl
-      #  uses: actions/download-artifact@v3
+      #  uses: actions/download-artifact@v4
       #  with:
       #    name: aarch64-unknown-linux-musl
       #    path: target/aarch64-unknown-linux-musl/release
 
       #- name: Download artifact x86_64-unknown-linux-musl
-      #  uses: actions/download-artifact@v3
+      #  uses: actions/download-artifact@v4
       #  with:
       #    name: x86_64-unknown-linux-musl
       #    path: target/x86_64-unknown-linux-musl/release
 
       #- name: Download artifact armv7-unknown-linux-musleabihf
-      #  uses: actions/download-artifact@v3
+      #  uses: actions/download-artifact@v4
       #  with:
       #    name: armv7-unknown-linux-musleabihf
       #    path: target/armv7-unknown-linux-musleabihf/release
+      -
+        name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@v3.10.0
+        with:
+          install: true
+
       -
         name: Docker meta
         id: docker_meta
         uses: docker/metadata-action@v5.7.0
         with:
           images: |
-            ghcr.io/nikitos/tusd
+            ghcr.io/nikitos/xiu
           tags: |
             type=sha
             type=semver,pattern=v{{version}}
@@ -226,6 +238,8 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           push: true
+          context: .
+          file: docker/Dockerfile 
           builder: ${{ steps.buildx.outputs.name }}
           tags: ${{ steps.docker_meta.outputs.tags }}
           labels: ${{ steps.docker_meta.outputs.labels }}
@@ -234,6 +248,7 @@ jobs:
           build-args: |
             GIT_VERSION=${{ env.GIT_VERSION }}
             GIT_COMMIT=${{ github.sha }}
+            VERSION=${{ needs.release.outputs.version }}
           platforms: linux/amd64,linux/arm64/v8
 
       #- name: podman build linux/arm64 (alpine edition)
