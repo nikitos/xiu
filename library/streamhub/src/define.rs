@@ -464,7 +464,7 @@ pub struct Segment {
     /*ts duration*/
     pub duration: i64,
     pub discontinuity: bool,
-    pub sequence_no: usize,
+    pub sequence_no: u64,
     /*ts name*/
     pub name: String,
     pub path: String,
@@ -475,7 +475,7 @@ impl Segment {
     pub fn new(
         duration: i64,
         discontinuity: bool,
-        sequence_no: usize,
+        sequence_no: u64,
         name: String,
         path: String,
         is_eof: bool,

@@ -9,6 +9,7 @@ use {
 pub struct M3u8 {
     version: u16,
     sequence_no: u32,
+    ts_no: u64,
     /*What duration should media files be?
     A duration of 10 seconds of media per file seems to strike a reasonable balance for most broadcast content.
     http://devimages.apple.com/iphone/samples/bipbop/bipbopall.m3u8*/
@@ -65,6 +66,7 @@ impl M3u8 {
         let mut m3u8 = Self {
             version: 3,
             sequence_no: utils::current_time(),
+            ts_no: 0,
             duration,
             live_ts_count,
             segments: VecDeque::new(),
@@ -92,6 +94,7 @@ impl M3u8 {
     ) -> Result<(), MediaError> {
         let segment_count: usize = self.segments.len();
         self.sequence_no = utils::current_time();
+        self.ts_no += 1;
 
         if segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
@@ -103,7 +106,7 @@ impl M3u8 {
         self.duration = std::cmp::max(duration, self.duration);
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no)?;
         // notify hls?
-        let segment = Segment::new(duration, discontinuity, segment_count, ts_name.clone(), ts_path.clone(), is_eof);
+        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name.clone(), ts_path.clone(), is_eof);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);
