@@ -3,6 +3,8 @@ name: Build/publish release
 #on: [push, pull_request]
 on:
   push:
+    branches:
+      - main
     # Pattern matched against refs/tags
     tags:
       - "*" # Push events to every tag not containing /
@@ -145,7 +147,11 @@ jobs:
       - name: Get version from tag
         id: extract_version
         run: |
-          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          if [[ "${GITHUB_REF_TYPE}" == "tag" && "${GITHUB_REF_NAME}" == v* ]]; then
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+          fi
         shell: bash
 
       - name: Release
@@ -219,6 +225,7 @@ jobs:
           images: |
             ghcr.io/nikitos/xiu
           tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
             type=sha
             type=semver,pattern=v{{version}}
             type=semver,pattern=v{{major}}.{{minor}}
