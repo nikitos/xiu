@@ -1,3 +1,4 @@
+extern crate aws_sdk_s3;
 use crate::config::{AuthConfig, AuthSecretConfig};
 use commonlib::auth::AuthType;
 use rtmp::remuxer::RtmpRemuxer;
@@ -333,10 +334,48 @@ impl Service {
 
             let event_producer = stream_hub.get_hub_event_sender();
             let cient_event_consumer = stream_hub.get_client_event_consumer();
+            
+            // Initialize S3 client if S3 is enabled
+            let s3_client = if let Some(hls_config) = &self.cfg.hls {
+                if let Some(s3_config) = &hls_config.s3 {
+                    if s3_config.enabled {
+                        // Initialize S3 client with config from S3Config
+                        let mut config_builder = aws_config::from_env();
+                        
+                        if let Some(access_key) = &s3_config.access_key {
+                            let credentials = aws_credential_types::Credentials::new(
+                                access_key.clone(),
+                                s3_config.secret_key.clone().unwrap_or_default(),
+                                None,
+                                None,
+                                "yandex",
+                            );
+                            config_builder = config_builder.credentials_provider(credentials);
+                        }
+                        
+                        config_builder = config_builder.region(aws_sdk_s3::config::Region::new(s3_config.region.clone()));
+                        
+                        if let Some(endpoint) = &s3_config.endpoint {
+                            config_builder = config_builder.endpoint_url(endpoint.clone());
+                        }
+                        
+                        let config = config_builder.load().await;
+                        Some(aws_sdk_s3::Client::new(&config))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            
             let mut hls_remuxer = HlsRemuxer::new(
                 cient_event_consumer,
                 event_producer,
                 self.cfg.hls.clone(),
+                s3_client,
             );
 
             tokio::spawn(async move {

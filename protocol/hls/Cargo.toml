@@ -23,6 +23,8 @@ xmpegts = { path = "../../library/container/mpegts/" }
 xflv = { path = "../../library/container/flv/" }
 commonlib = { path = "../../library/common/" }
 config = { path = "../../library/config/" }
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.123.0"
 
 [dependencies.tokio]
 version = "1.4.0"

@@ -1,5 +1,6 @@
 use {
     super::{errors::MediaError, ts::Ts, utils},
+    aws_sdk_s3::Client as S3Client,
     config::HlsConfig,
     bytes::BytesMut,
     streamhub::{define::{Segment}},
@@ -28,14 +29,20 @@ pub struct M3u8 {
     need_record: bool,
     vod_m3u8_content: String,
     vod_m3u8_name: String,
+    
+    s3_client: Option<S3Client>,
+    s3_bucket: Option<String>,
+    s3_prefix: Option<String>,
 }
 
 impl M3u8 {
     pub fn new(
         duration: i64,
-        app_name: String,
         stream_name: String,
         hls_config: Option<HlsConfig>,
+        s3_client: Option<S3Client>,
+        s3_bucket: Option<String>,
+        s3_prefix: Option<String>,
     ) -> Self {
 
         let path = hls_config
@@ -72,11 +79,13 @@ impl M3u8 {
             segments: VecDeque::new(),
             m3u8_folder: m3u8_folder.clone(),
             live_m3u8_name,
-            ts_handler: Ts::new(m3u8_folder),
-            // record,
+            ts_handler: Ts::new(m3u8_folder, s3_client.clone(), s3_bucket.clone(), stream_name),
             need_record,
             vod_m3u8_content: String::default(),
             vod_m3u8_name,
+            s3_client: s3_client,
+            s3_bucket: s3_bucket,
+            s3_prefix: s3_prefix,
         };
 
         if need_record {
@@ -85,7 +94,7 @@ impl M3u8 {
         m3u8
     }
 
-    pub fn add_segment(
+    pub async fn add_segment(
         &mut self,
         duration: i64,
         discontinuity: bool,
@@ -101,12 +110,11 @@ impl M3u8 {
             if !self.need_record {
                 self.ts_handler.delete(segment.path);
             }
-
         }
         self.duration = std::cmp::max(duration, self.duration);
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no)?;
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no).await?;
         // notify hls?
-        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name.clone(), ts_path.clone(), is_eof);
+        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name, ts_path, is_eof);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);

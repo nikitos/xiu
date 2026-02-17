@@ -1,5 +1,9 @@
 use {
-    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, bytes::BytesMut, config::HlsConfig, xflv::{
+    super::{define::FlvDemuxerData, errors::MediaError, m3u8::M3u8}, 
+    aws_sdk_s3::Client as S3Client,
+    bytes::BytesMut, 
+    config::HlsConfig, 
+    xflv::{
         define::{frame_type, FlvData},
         demuxer::{FlvAudioTagDemuxer, FlvVideoTagDemuxer},
     },
@@ -33,7 +37,6 @@ pub struct Flv2HlsRemuxer {
     app_name: String,
     stream_name: String,
     aof_ratio: i64,
-
 }
 
 impl Flv2HlsRemuxer {
@@ -42,6 +45,7 @@ impl Flv2HlsRemuxer {
         stream_name: String,
         hls_config: Option<HlsConfig>,
         event_producer: Option<StreamHubEventSender>,
+        s3_client: Option<S3Client>,
     ) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
@@ -61,6 +65,10 @@ impl Flv2HlsRemuxer {
             .and_then(|config| config.aof_ratio)
             .unwrap_or(5);
         
+        let s3_config = hls_config.as_ref().and_then(|config| config.s3.clone());
+        let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
+        let s3_prefix: Option<String> = s3_config.as_ref().map(|c| c.prefix.clone()).expect("No prefix");
+        
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
             audio_demuxer: FlvAudioTagDemuxer::new(),
@@ -79,7 +87,14 @@ impl Flv2HlsRemuxer {
             video_pid,
             audio_pid,
         
-            m3u8_handler: M3u8::new(duration, app_name.clone(), stream_name.clone(), hls_config),
+            m3u8_handler: M3u8::new(
+                duration,
+                stream_name.clone(),
+                hls_config,
+                s3_client,
+                s3_bucket,
+                s3_prefix,
+            ),
             event_producer,
             app_name,
             stream_name,
@@ -87,7 +102,7 @@ impl Flv2HlsRemuxer {
         }
     }
 
-    pub fn process_flv_data(&mut self, data: FlvData) -> Result<(), MediaError> {
+    pub async fn process_flv_data(&mut self, data: FlvData) -> Result<(), MediaError> {
         let flv_demux_data: FlvDemuxerData = match data {
             FlvData::Audio { timestamp, data } => {
                 let audio_data = self.audio_demuxer.demux(timestamp, data)?;
@@ -103,12 +118,12 @@ impl Flv2HlsRemuxer {
             _ => return Ok(()),
         };
 
-        self.process_demux_data(&flv_demux_data)?;
+        self.process_demux_data(&flv_demux_data).await?;
 
         Ok(())
     }
 
-    pub fn flush_remaining_data(&mut self) -> Result<(), MediaError> {
+    pub async fn flush_remaining_data(&mut self) -> Result<(), MediaError> {
         let data = self.ts_muxer.get_data();
         let mut discontinuity: bool = false;
         if self.last_dts > self.last_ts_dts + 15 * 1000 {
@@ -119,13 +134,13 @@ impl Flv2HlsRemuxer {
             discontinuity,
             true,
             data,
-        )?;
+        ).await?;
         self.m3u8_handler.refresh_playlist()?;
 
         Ok(())
     }
 
-    pub fn process_demux_data(
+    pub async fn process_demux_data(
         &mut self,
         flv_demux_data: &FlvDemuxerData,
     ) -> Result<(), MediaError> {
@@ -191,7 +206,7 @@ impl Flv2HlsRemuxer {
                 log::info!("on_hls success: {:?}", identifier);
             }
             self.m3u8_handler
-                .add_segment(dts - self.last_ts_dts, discontinuity, false, data)?;
+                .add_segment(dts - self.last_ts_dts, discontinuity, false, data).await?;
             self.m3u8_handler.refresh_playlist()?;
 
             self.ts_muxer.reset();

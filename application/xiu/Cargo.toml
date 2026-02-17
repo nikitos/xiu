@@ -22,6 +22,8 @@ serde_json = { version = "1", default-features = false, features = [
 ] }
 axum = "0.6.10"
 tokio-metrics = { version = "0.2.0", default-features = false }
+aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.123.0"
 
 env_logger_extend = { path = "../../library/logger/" }
 streamhub = { path = "../../library/streamhub/" }
@@ -32,6 +34,7 @@ xrtsp = { path = "../../protocol/rtsp/" }
 xwebrtc = { path = "../../protocol/webrtc/" }
 httpflv = { path = "../../protocol/httpflv/" }
 hls = { path = "../../protocol/hls/" }
+aws-credential-types = "1.2.12"
 
 [features]
 default = ["std"]
