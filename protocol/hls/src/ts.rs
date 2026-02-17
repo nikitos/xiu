@@ -56,7 +56,28 @@ impl Ts {
 
         Ok((ts_file_name, ts_file_path))
     }
-    pub fn delete(&mut self, ts_file_name: String) {
-        fs::remove_file(ts_file_name).unwrap();
+    pub async fn delete(&mut self, ts_file_name: String) {
+
+        let ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
+        // Delete from local file system
+        
+        // Delete from S3 if configured
+        if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
+            let key = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
+            let _result = client
+                .delete_object()
+                .bucket(bucket)
+                .key(&key)
+                .send()
+                .await
+                .map_err(|e| MediaError {
+                    value: super::errors::MediaErrorValue::IOError(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("S3 delete failed: {}", e),
+                    )),
+                });
+        } else {
+            fs::remove_file(ts_file_path).unwrap();
+        }
     }
 }

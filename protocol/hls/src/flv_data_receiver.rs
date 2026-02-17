@@ -86,7 +86,7 @@ impl FlvDataReceiver {
             }
         }
 
-        self.media_processor.clear_files()?;
+        self.media_processor.clear_files().await?;
         self.unsubscribe_from_stream_hub().await
     }
 

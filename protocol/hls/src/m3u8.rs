@@ -108,7 +108,7 @@ impl M3u8 {
         if segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
             if !self.need_record {
-                self.ts_handler.delete(segment.path);
+                self.ts_handler.delete(segment.name.clone()).await;
             }
         }
         self.duration = std::cmp::max(duration, self.duration);
@@ -125,7 +125,7 @@ impl M3u8 {
         Ok(())
     }
 
-    pub fn clear(&mut self) -> Result<(), MediaError> {
+    pub async fn clear(&mut self) -> Result<(), MediaError> {
         if self.need_record {
             let vod_m3u8_path = format!("{}/{}", self.m3u8_folder, self.vod_m3u8_name);
             let mut file_handler = File::create(vod_m3u8_path).unwrap();
@@ -133,7 +133,7 @@ impl M3u8 {
             file_handler.write_all(self.vod_m3u8_content.as_bytes())?;
         } else {
             for segment in &self.segments {
-                self.ts_handler.delete(segment.path.clone());
+                self.ts_handler.delete(segment.name.clone()).await;
             }
         }
 
