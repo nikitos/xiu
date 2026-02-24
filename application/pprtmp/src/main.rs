@@ -52,7 +52,7 @@ async fn main() -> Result<()> {
     let push_rtmp_url = matches.get_one::<String>("pushrtmp").unwrap().clone();
 
     let (event_producer, event_consumer) = mpsc::unbounded_channel();
-    let mut stream_hub = StreamsHub::new(None, event_producer, event_consumer);
+    let mut stream_hub = StreamsHub::new(None, event_producer, event_consumer, None);
     let producer = stream_hub.get_hub_event_sender();
     tokio::spawn(async move { stream_hub.run().await });
 

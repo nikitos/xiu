@@ -1,6 +1,7 @@
 extern crate aws_sdk_s3;
 use crate::config::{AuthConfig, AuthSecretConfig};
 use commonlib::auth::AuthType;
+use prometheus::register_int_gauge;
 use rtmp::remuxer::RtmpRemuxer;
 use std::sync::Arc;
 use xrtsp::relay::pull_client_manager::RtspPullClientManager;
@@ -18,7 +19,7 @@ use {
         relay::{pull_client::PullClient, push_client::PushClient},
         rtmp::RtmpServer,
     },
-    streamhub::{notify::http::HttpNotifier, notify::Notifier, StreamsHub},
+    streamhub::{notify::http::HttpNotifier, notify::Notifier, Metrics, StreamsHub},
     tokio,
     tokio::sync::mpsc,
     xrtsp::rtsp::RtspServer,
@@ -65,6 +66,17 @@ impl Service {
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        // Initialize Prometheus metrics
+        let rtmp_streams_gauge = register_int_gauge!(
+            "xiu_rtmp_streams_total",
+            "Total number of RTMP streams published"
+        )?;
+        
+        // Create Metrics struct to hold all metrics
+        let metrics = Some(Metrics {
+            rtmp_streams_gauge: Some(rtmp_streams_gauge),
+        });
+        
         let (event_producer, event_consumer) = mpsc::unbounded_channel();
         let notifier: Option<Arc<dyn Notifier>> = if let Some(httpnotifier) = &self.cfg.httpnotify {
             if !httpnotifier.enabled {
@@ -83,7 +95,7 @@ impl Service {
             None
         };
 
-        let mut stream_hub = StreamsHub::new(notifier, event_producer, event_consumer);
+        let mut stream_hub = StreamsHub::new(notifier, event_producer, event_consumer, metrics);
 
         self.start_httpflv(&mut stream_hub).await?;
         self.start_hls(&mut stream_hub).await?;
@@ -92,6 +104,7 @@ impl Service {
         self.start_webrtc(&mut stream_hub).await?;
         self.start_http_api_server(&mut stream_hub).await?;
         self.start_rtmp_remuxer(&mut stream_hub).await?;
+        self.start_prometheus_metrics_server(&mut stream_hub).await?;
 
         tokio::spawn(async move {
             stream_hub.run().await;
@@ -395,5 +408,31 @@ impl Service {
         }
 
         Ok(())
+    }
+
+    async fn start_prometheus_metrics_server(&mut self, _stream_hub: &mut StreamsHub) -> Result<()> {
+        let app = axum::Router::new()
+            .route("/metrics", axum::routing::get(metrics_handler));
+
+        log::info!("Prometheus server listening on http://0.0.0.0:9090/metrics");
+
+        tokio::spawn(async move {
+            axum::Server::bind(&([0, 0, 0, 0], 9090).into()).serve(app.into_make_service()).await.unwrap();
+        });
+
+        Ok(())
+    }
+}
+
+async fn metrics_handler() -> Result<String, axum::http::StatusCode> {
+    let encoder = prometheus::TextEncoder::new();
+    let metric_families = prometheus::gather();
+    
+    match encoder.encode_to_string(&metric_families) {
+        Ok(result) => Ok(result),
+        Err(err) => {
+            log::error!("Error encoding metrics: {}", err);
+            Err(axum::http::StatusCode::INTERNAL_SERVER_ERROR)
+        }
     }
 }

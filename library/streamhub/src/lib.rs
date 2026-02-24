@@ -2,6 +2,12 @@ use define::{
     FrameDataReceiver, PacketDataReceiver, PacketDataSender, RelayType, StatisticData,
     StatisticDataReceiver, StatisticDataSender,
 };
+use prometheus::{IntGauge};
+
+// Struct to hold Prometheus metrics
+pub struct Metrics {
+    pub rtmp_streams_gauge: Option<IntGauge>,
+}
 use serde_json::{json, Value};
 use statistics::{StatisticSubscriber, StatisticsStream};
 use tokio::sync::oneshot;
@@ -517,6 +523,8 @@ pub struct StreamsHub {
     hls_enabled: bool,
     //http notifier on sub/pub event
     notifier: Option<Arc<dyn Notifier>>,
+    //Prometheus metrics
+    metrics: Option<Metrics>,
 }
 
 impl StreamsHub {
@@ -524,6 +532,7 @@ impl StreamsHub {
         notifier: Option<Arc<dyn Notifier>>,
         event_producer: StreamHubEventSender,
         event_consumer: StreamHubEventReceiver,
+        metrics: Option<Metrics>,
         ) -> Self {
         let (client_producer, _) = broadcast::channel(100);
 
@@ -538,6 +547,7 @@ impl StreamsHub {
             rtmp_remuxer_enabled: false,
             hls_enabled: false,
             notifier,
+            metrics,
         }
     }
     pub async fn run(&mut self) {
@@ -1066,6 +1076,15 @@ impl StreamsHub {
 
         self.streams.insert(identifier.clone(), event_sender);
 
+        // Update RTMP streams gauge if this is an RTMP stream
+        if let StreamIdentifier::Rtmp { .. } = identifier {
+            if let Some(ref metrics) = self.metrics {
+                if let Some(ref gauge) = metrics.rtmp_streams_gauge {
+                    gauge.inc();
+                }
+            }
+        }
+
         if self.rtmp_push_enabled || self.hls_enabled || self.rtmp_remuxer_enabled {
             let client_event = BroadcastEvent::Publish { identifier };
 
@@ -1087,6 +1106,16 @@ impl StreamsHub {
                 producer.send(event).map_err(|_| StreamHubError {
                     value: StreamHubErrorValue::SendError,
                 })?;
+                
+                // Update RTMP streams gauge if this is an RTMP stream
+                if let StreamIdentifier::Rtmp { .. } = identifier {
+                    if let Some(ref metrics) = self.metrics {
+                        if let Some(ref gauge) = metrics.rtmp_streams_gauge {
+                            gauge.dec();
+                        }
+                    }
+                }
+                
                 self.streams.remove(identifier);
                 log::info!("unpublish remove stream, stream identifier: {}", identifier);
             }
