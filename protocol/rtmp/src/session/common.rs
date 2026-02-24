@@ -83,6 +83,27 @@ impl Common {
             //cache: None,
         }
     }
+    fn extract_domain_name(&self) -> String {
+        if self.request_url.is_empty() {
+            return String::new();
+        }
+        
+        let url = self.request_url.trim();
+        
+        let url_without_protocol = if url.starts_with("rtmp://") {
+            &url[7..]
+        } else {
+            url
+        };
+        
+        let domain = url_without_protocol
+            .split(&['/', ':'][..])
+            .next()
+            .unwrap_or("")
+            .to_string();
+        domain
+    }
+
     pub async fn send_channel_data(&mut self) -> Result<(), SessionError> {
         let mut retry_times = 0;
         loop {
@@ -342,6 +363,7 @@ impl Common {
         let identifier = StreamIdentifier::Rtmp {
             app_name,
             stream_name,
+            domain_name: self.extract_domain_name(),
         };
 
         let (event_result_sender, event_result_receiver) = oneshot::channel();
@@ -389,6 +411,7 @@ impl Common {
         let identifier = StreamIdentifier::Rtmp {
             app_name,
             stream_name,
+            domain_name: self.extract_domain_name(),
         };
 
         let subscribe_event = StreamHubEvent::UnSubscribe {
@@ -417,6 +440,7 @@ impl Common {
             identifier: StreamIdentifier::Rtmp {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
+                domain_name: self.extract_domain_name(),
             },
             info,
             stream_handler: self.stream_handler.clone(),
@@ -465,6 +489,7 @@ impl Common {
             identifier: StreamIdentifier::Rtmp {
                 app_name: app_name.clone(),
                 stream_name: stream_name.clone(),
+                domain_name: self.extract_domain_name(),
             },
             info: self.get_publisher_info(),
         };

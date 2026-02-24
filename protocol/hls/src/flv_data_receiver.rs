@@ -29,12 +29,14 @@ pub struct FlvDataReceiver {
     data_consumer: FrameDataReceiver,
     media_processor: Flv2HlsRemuxer,
     subscriber_id: Uuid,
+    domain_name: String,
 }
 
 impl FlvDataReceiver {
     pub fn new(
         app_name: String,
         stream_name: String,
+        domain_name: String,
         event_producer: StreamHubEventSender,
         hls_config: Option<HlsConfig>,
         s3_client: Option<S3Client>,
@@ -47,8 +49,9 @@ impl FlvDataReceiver {
             stream_name: stream_name.clone(),
             data_consumer,
             event_producer: event_producer.clone(),
-            media_processor: Flv2HlsRemuxer::new(app_name, stream_name, hls_config, Some(event_producer), s3_client),
+            media_processor: Flv2HlsRemuxer::new(app_name, stream_name, hls_config, Some(event_producer), s3_client, domain_name.clone()),
             subscriber_id,
+            domain_name,
         }
     }
 
@@ -113,6 +116,7 @@ impl FlvDataReceiver {
         let identifier = StreamIdentifier::Rtmp {
             app_name,
             stream_name,
+            domain_name: self.domain_name.clone(),
         };
 
         let (event_result_sender, event_result_receiver) = oneshot::channel();
@@ -151,6 +155,7 @@ impl FlvDataReceiver {
         let identifier = StreamIdentifier::Rtmp {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
+            domain_name: self.domain_name.clone(),
         };
 
         let subscribe_event = StreamHubEvent::UnSubscribe {

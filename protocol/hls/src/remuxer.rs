@@ -38,11 +38,13 @@ impl HlsRemuxer {
                     if let StreamIdentifier::Rtmp {
                         app_name,
                         stream_name,
+                        domain_name,
                     } = identifier
                     {
                         let mut rtmp_subscriber = FlvDataReceiver::new(
                             app_name,
                             stream_name,
+                            domain_name,
                             self.event_producer.clone(),
                             self.hls_config.clone(),
                             self.s3_client.clone(),

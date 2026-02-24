@@ -37,6 +37,7 @@ impl PullClient {
                     StreamIdentifier::Rtmp {
                         app_name,
                         stream_name,
+                        domain_name: _,
                     },
                 server_address: _,
                 result_sender: _,

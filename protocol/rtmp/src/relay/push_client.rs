@@ -39,6 +39,7 @@ impl PushClient {
                     if let StreamIdentifier::Rtmp {
                         app_name,
                         stream_name,
+                        domain_name: _,
                     } = identifier
                     {
                         log::info!(

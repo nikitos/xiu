@@ -86,8 +86,8 @@ impl HlsPath {
             HlsFileType::Segment => Self::TS_EXT,
         };
         format!(
-            "./{}/{}.{}",
-            self.stream_name, self.file_name, ext
+            "./{}/{}/{}.{}",
+            self.app_name, self.stream_name, self.file_name, ext
         )
     }
 }

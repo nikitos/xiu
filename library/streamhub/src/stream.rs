@@ -9,6 +9,7 @@ pub enum StreamIdentifier {
     Rtmp {
         app_name: String,
         stream_name: String,
+        domain_name: String,
     },
     #[serde(rename = "rtsp")]
     Rtsp { stream_path: String },
@@ -24,6 +25,7 @@ impl fmt::Display for StreamIdentifier {
             StreamIdentifier::Rtmp {
                 app_name,
                 stream_name,
+                domain_name: _,
             } => {
                 write!(f, "RTMP - app_name: {app_name}, stream_name: {stream_name}")
             }

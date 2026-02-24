@@ -37,6 +37,7 @@ pub struct Flv2HlsRemuxer {
     app_name: String,
     stream_name: String,
     aof_ratio: i64,
+    domain_name: String,
 }
 
 impl Flv2HlsRemuxer {
@@ -46,6 +47,7 @@ impl Flv2HlsRemuxer {
         hls_config: Option<HlsConfig>,
         event_producer: Option<StreamHubEventSender>,
         s3_client: Option<S3Client>,
+        domain_name: String,
     ) -> Self {
         let mut ts_muxer = TsMuxer::new();
         let audio_pid = ts_muxer
@@ -68,6 +70,16 @@ impl Flv2HlsRemuxer {
         let s3_config = hls_config.as_ref().and_then(|config| config.s3.clone());
         let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
         let s3_prefix: Option<String> = s3_config.as_ref().map(|c| c.prefix.clone()).expect("No prefix");
+
+        let config_clone = if domain_name.contains("endless") {
+            hls_config.clone().map(|mut config| {
+                config.need_record = false;
+                config
+            })
+        } else {
+            hls_config.clone()
+        };
+
         
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
@@ -90,7 +102,7 @@ impl Flv2HlsRemuxer {
             m3u8_handler: M3u8::new(
                 duration,
                 stream_name.clone(),
-                hls_config,
+                config_clone,
                 s3_client,
                 s3_bucket,
                 s3_prefix,
@@ -99,6 +111,7 @@ impl Flv2HlsRemuxer {
             app_name,
             stream_name,
             aof_ratio,
+            domain_name,
         }
     }
 
@@ -194,7 +207,11 @@ impl Flv2HlsRemuxer {
             let data = self.ts_muxer.get_data();
 
             if let Some(segment) = self.m3u8_handler.segments.back() {
-                let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
+                let identifier = StreamIdentifier::Rtmp { 
+                    app_name: self.app_name.clone(), 
+                    stream_name: self.stream_name.clone(),
+                    domain_name: self.domain_name.clone(),
+                };
                 let hub_event = StreamHubEvent::OnHls { identifier: identifier.clone(), segment: segment.clone() };
                 if let Some(producer) = self.event_producer.clone() {
                     if let Err(err) = producer.send(hub_event) {

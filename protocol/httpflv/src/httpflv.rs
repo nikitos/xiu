@@ -41,6 +41,28 @@ pub struct HttpFlv {
 }
 
 impl HttpFlv {
+    fn extract_domain_name(&self) -> String {
+        if self.request_url.is_empty() {
+            return String::new();
+        }
+        
+        let url = self.request_url.trim();
+        
+        let url_without_protocol = if url.starts_with("rtmp://") {
+            &url[7..]
+        } else {
+            url
+        };
+        
+        let domain = url_without_protocol
+            .split(&['/', ':'][..])
+            .next()
+            .unwrap_or("")
+            .to_string();
+            
+        domain
+    }
+
     pub fn new(
         app_name: String,
         stream_name: String,
@@ -232,6 +254,7 @@ impl HttpFlv {
         let identifier = StreamIdentifier::Rtmp {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
+            domain_name: self.extract_domain_name(),
         };
 
         let subscribe_event = StreamHubEvent::UnSubscribe {
@@ -259,6 +282,7 @@ impl HttpFlv {
         let identifier = StreamIdentifier::Rtmp {
             app_name: self.app_name.clone(),
             stream_name: self.stream_name.clone(),
+            domain_name: self.extract_domain_name(),
         };
 
         let (event_result_sender, event_result_receiver) = oneshot::channel();
