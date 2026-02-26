@@ -48,6 +48,7 @@ impl Amf0Reader {
             amf0_markers::NULL => self.read_null(),
             amf0_markers::ECMA_ARRAY => self.read_ecma_array(),
             amf0_markers::LONG_STRING => self.read_long_string(),
+            amf0_markers::STRICT_ARRAY => self.read_strict_array(),
             _ => Err(Amf0ReadError {
                 value: Amf0ReadErrorValue::UnknownMarker { marker: markers },
             }),
@@ -153,6 +154,19 @@ impl Amf0Reader {
 
         let val = String::from_utf8(buff.to_vec())?;
         Ok(Amf0ValueType::LongUTF8String(val))
+    }
+
+    pub fn read_strict_array(&mut self) -> Result<Amf0ValueType, Amf0ReadError> {
+        let l = self.reader.read_u32::<BigEndian>()?;
+
+        let mut properties = IndexMap::new();
+
+        for i in 0..l {
+            let val = self.read_any()?;
+            properties.insert(i.to_string(), val);
+        }
+         
+        Ok(Amf0ValueType::Object(properties))
     }
 
     // pub fn get_remaining_bytes(&mut self) -> BytesMut {
