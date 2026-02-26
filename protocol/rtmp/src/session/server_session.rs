@@ -358,6 +358,7 @@ impl ServerSession {
     }
 
     fn parse_connect_properties(&mut self, command_obj: &IndexMap<String, Amf0ValueType>) {
+        log::info!("raw connect properties: {:?}", command_obj);
         for (property, value) in command_obj {
             match property.as_str() {
                 "app" => {
