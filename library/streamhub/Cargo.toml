@@ -11,15 +11,15 @@ repository = "https://github.com/harlanc/xiu"
 
 [dependencies]
 failure = "0.1.8"
-byteorder = "1.4.2"
-bytes = "1.0.0"
+byteorder = "1.5.0"
+bytes = "1.11.1"
 rand = "0.8"
 log = "0.4"
 chrono = { version = "0.4", features = ["serde"] }
 indexmap = "1.9.3"
 #use vendored feature to enable cross compile for openssl
-reqwest = { version = "0.11.24", features = ["native-tls-vendored", "json"] }
-async-trait = "0.1.70"
+reqwest = { version = "0.11.27", features = ["native-tls-vendored", "json"] }
+async-trait = "0.1.89"
 serde_json = { version = "1", default-features = false, features = [
     "alloc",
     "raw_value",
@@ -31,6 +31,6 @@ bytesio = { path = "../../library/bytesio/" }
 xflv = { path = "../../library/container/flv/" }
 
 [dependencies.tokio]
-version = "1.4.0"
+version = "1.49.0"
 default-features = false
 features = ["full"]

@@ -11,22 +11,22 @@ keywords = ["hls", "video", "streaming"]
 edition = "2018"
 
 [dependencies]
-byteorder = "1.4.2"
-bytes = "1.0.0"
+byteorder = "1.5.0"
+bytes = "1.11.1"
 failure = "0.1.8"
 log = "0.4"
-axum = { version = "0.7.4" }
-tokio-util = { version = "0.6.5", features = ["codec"] }
+axum = { version = "0.7.9" }
+tokio-util = { version = "0.6.10", features = ["codec"] }
 
 streamhub = { path = "../../library/streamhub/" }
 xmpegts = { path = "../../library/container/mpegts/" }
 xflv = { path = "../../library/container/flv/" }
 commonlib = { path = "../../library/common/" }
 config = { path = "../../library/config/" }
-aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.123.0"
+aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.124.0"
 
 [dependencies.tokio]
-version = "1.4.0"
+version = "1.49.0"
 default-features = false
 features = ["full"]

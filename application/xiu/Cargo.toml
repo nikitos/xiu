@@ -10,20 +10,20 @@ categories = ["multimedia", "multimedia::video", 'multimedia::audio']
 keywords = ["rtmp", "hls", "httpflv", "video", "streaming"]
 edition = "2018"
 [dependencies]
-serde = { version = "1.0.101", optional = true, features = ["derive"] }
+serde = { version = "1.0.228", optional = true, features = ["derive"] }
 anyhow = "^1.0"
-log = "0.4.0"
-clap = "4.1.4"
-libc = "0.2.139"
+log = "0.4.29"
+clap = "4.5.60"
+libc = "0.2.182"
 serde_json = { version = "1", default-features = false, features = [
     "alloc",
     "raw_value",
     "std",
 ] }
-axum = "0.6.10"
-tokio-metrics = { version = "0.2.0", default-features = false }
-aws-config = { version = "1.1.7", features = ["behavior-version-latest"] }
-aws-sdk-s3 = "1.123.0"
+axum = "0.6.20"
+tokio-metrics = { version = "0.2.2", default-features = false }
+aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
+aws-sdk-s3 = "1.124.0"
 
 env_logger_extend = { path = "../../library/logger/" }
 streamhub = { path = "../../library/streamhub/" }
@@ -34,14 +34,14 @@ xrtsp = { path = "../../protocol/rtsp/" }
 xwebrtc = { path = "../../protocol/webrtc/" }
 httpflv = { path = "../../protocol/httpflv/" }
 hls = { path = "../../protocol/hls/" }
-aws-credential-types = "1.2.12"
+aws-credential-types = "1.2.13"
 
 [features]
 default = ["std"]
 std = ["serde"]
 
 [dependencies.tokio]
-version = "1.26.0"
+version = "1.49.0"
 default-features = false
 #features = ["rt-core", "rt-threaded", "macros", "time","sync"]
 features = ["full"]
