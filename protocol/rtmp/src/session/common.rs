@@ -303,7 +303,7 @@ impl Common {
         }
     }
 
-    fn get_publisher_info(&mut self) -> PublisherInfo {
+    pub fn get_publisher_info(&mut self) -> PublisherInfo {
         let remote_addr = if let Some(addr) = self.remote_addr {
             addr.to_string()
         } else {

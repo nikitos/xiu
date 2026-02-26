@@ -193,7 +193,8 @@ pub struct HttpNotifierConfig {
     pub on_unpublish: Option<String>,
     pub on_play: Option<String>,
     pub on_stop: Option<String>,
-    pub on_hls: Option<String>, 
+    pub on_hls: Option<String>,
+    pub on_connect: Option<String>, 
 }
 
 #[derive(Debug, Deserialize, Clone, Default)]

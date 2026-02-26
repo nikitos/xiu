@@ -76,6 +76,7 @@ impl Service {
                     httpnotifier.on_play.clone(),
                     httpnotifier.on_stop.clone(),
                     httpnotifier.on_hls.clone(),
+                    httpnotifier.on_connect.clone(),
                     event_producer.clone(),
                 )))
             }
@@ -83,11 +84,11 @@ impl Service {
             None
         };
 
-        let mut stream_hub = StreamsHub::new(notifier, event_producer, event_consumer);
+        let mut stream_hub = StreamsHub::new(notifier.clone(), event_producer, event_consumer);
 
         self.start_httpflv(&mut stream_hub).await?;
         self.start_hls(&mut stream_hub).await?;
-        self.start_rtmp(&mut stream_hub).await?;
+        self.start_rtmp(&mut stream_hub, notifier).await?;
         self.start_rtsp(&mut stream_hub).await?;
         self.start_webrtc(&mut stream_hub).await?;
         self.start_http_api_server(&mut stream_hub).await?;
@@ -115,7 +116,7 @@ impl Service {
         Ok(())
     }
 
-    async fn start_rtmp(&mut self, stream_hub: &mut StreamsHub) -> Result<()> {
+    async fn start_rtmp(&mut self, stream_hub: &mut StreamsHub, notifier: Option<Arc<dyn Notifier>>) -> Result<()> {
         let rtmp_cfg = &self.cfg.rtmp;
 
         if let Some(rtmp_cfg_value) = rtmp_cfg {
@@ -189,7 +190,7 @@ impl Service {
             let auth = Self::gen_auth(&rtmp_cfg_value.auth, &self.cfg.authsecret);
             let mut rtmp_server = RtmpServer::new(address, producer, gop_num, auth);
             tokio::spawn(async move {
-                if let Err(err) = rtmp_server.run().await {
+                if let Err(err) = rtmp_server.run(notifier).await {
                     log::error!("rtmp server error: {}", err);
                 }
             });

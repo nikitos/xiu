@@ -1,7 +1,7 @@
 use crate::notify::Notifier;
 use reqwest::Client;
 use async_trait::async_trait;
-use crate::define::{PublisherInfo, StreamHubEventMessage, StreamHubEventSender, StreamHubEvent};
+use crate::define::{PublisherInfo, StreamHubEventMessage, StreamHubEventSender, StreamHubEvent, HookResponse};
 
 macro_rules! serialize_event {
     ($message:expr) => {{
@@ -24,6 +24,7 @@ pub struct HttpNotifier {
     on_play_url: Option<String>,
     on_stop_url: Option<String>,
     on_hls_url: Option<String>,
+    on_connect_url: Option<String>,
     event_producer: StreamHubEventSender,
 }
 
@@ -34,6 +35,7 @@ impl HttpNotifier {
         on_play_url: Option<String>,
         on_stop_url: Option<String>,
         on_hls_url: Option<String>,
+        on_connect_url: Option<String>,
         event_producer: StreamHubEventSender,
 
     ) -> Self {
@@ -44,6 +46,7 @@ impl HttpNotifier {
             on_play_url,
             on_stop_url,
             on_hls_url,
+            on_connect_url,
             event_producer,
         }
     }
@@ -51,6 +54,35 @@ impl HttpNotifier {
 
 #[async_trait]
 impl Notifier for HttpNotifier {
+        async fn on_connect_notify(&self, event: &StreamHubEventMessage) -> Option<HookResponse> {
+
+        if let Some(on_connect_url) = &self.on_connect_url {
+            match self
+                .request_client
+                .post(on_connect_url)
+                .body(serialize_event!(event))
+                .send()
+                .await
+            {
+                Err(err) => {
+                    log::error!("on_connect error: {}", err);
+                    None
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    let response = response.json().await.ok()?;
+                    if status != 200 {
+                        self.kick_off_client(event).await;
+                    }
+                    log::info!("on_connect success: {:?}", response);
+                    response
+                }
+            }
+        } else {
+            None
+        }
+    }
+
     async fn on_publish_notify(&self, event: &StreamHubEventMessage) {
         if let Some(on_publish_url) = &self.on_publish_url {
             match self

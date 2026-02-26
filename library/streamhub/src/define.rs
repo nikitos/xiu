@@ -260,6 +260,10 @@ pub enum StreamHubEventMessage {
         identifier: StreamIdentifier,
         segment: Segment,
     },
+    Connect {
+        identifier: StreamIdentifier,
+        info: PublisherInfo,  
+    },
     NotSupport {},
 }
 
@@ -487,6 +491,21 @@ impl Segment {
             name,
             path,
             is_eof,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HookResponse {
+    pub app_name: String,
+    pub stream_name: String,
+}
+
+impl HookResponse {
+    pub fn new(app_name: String, stream_name: String) -> Self {
+        Self {
+            app_name,
+            stream_name,
         }
     }
 }

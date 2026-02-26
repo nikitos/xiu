@@ -68,7 +68,14 @@ impl Flv2HlsRemuxer {
         let s3_config = hls_config.as_ref().and_then(|config| config.s3.clone());
         let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
         let s3_prefix: Option<String> = s3_config.as_ref().map(|c| c.prefix.clone()).expect("No prefix");
-        
+
+        let mut modified_hls_config = hls_config.clone();
+        if let Some(ref mut config) = modified_hls_config {
+            if app_name.to_lowercase().contains("endless") {
+                config.need_record = false;
+            }
+        }
+         
         Self {
             video_demuxer: FlvVideoTagDemuxer::new(),
             audio_demuxer: FlvAudioTagDemuxer::new(),
@@ -90,7 +97,7 @@ impl Flv2HlsRemuxer {
             m3u8_handler: M3u8::new(
                 duration,
                 stream_name.clone(),
-                hls_config,
+                modified_hls_config,
                 s3_client,
                 s3_bucket,
                 s3_prefix,

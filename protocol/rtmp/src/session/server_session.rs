@@ -31,7 +31,11 @@ use {
     commonlib::auth::Auth,
     indexmap::IndexMap,
     std::{sync::Arc, time::Duration},
-    streamhub::define::StreamHubEventSender,
+    streamhub::{
+        define::{StreamHubEventMessage, StreamHubEventSender},
+        stream::StreamIdentifier,
+        notify::Notifier,
+    },
     tokio::{net::TcpStream, sync::Mutex},
     xflv::amf0::Amf0ValueType,
 };
@@ -61,6 +65,7 @@ pub struct ServerSession {
     /*configure how many gops will be cached.*/
     gop_num: usize,
     auth: Option<Auth>,
+    notifier: Option<Arc<dyn Notifier>>
 }
 
 impl ServerSession {
@@ -69,6 +74,7 @@ impl ServerSession {
         event_producer: StreamHubEventSender,
         gop_num: usize,
         auth: Option<Auth>,
+        notifier: Option<Arc<dyn Notifier>>
     ) -> Self {
         let remote_addr = if let Ok(addr) = stream.peer_addr() {
             log::info!("server session: {}", addr.to_string());
@@ -100,6 +106,7 @@ impl ServerSession {
             connect_properties: ConnectProperties::default(),
             gop_num,
             auth,
+            notifier,
         }
     }
 
@@ -762,6 +769,25 @@ impl ServerSession {
             self.app_name,
             self.stream_name
         );
+        
+        let hook_response = if let Some(notifier) = self.notifier.clone() {
+            let publish_event = StreamHubEventMessage::Connect {
+                identifier: StreamIdentifier::Rtmp {
+                    app_name: self.app_name.clone(),
+                    stream_name: self.stream_name.clone(),
+                },
+                info: self.common.get_publisher_info(),
+            };
+            notifier.on_connect_notify(&publish_event).await
+        } else {
+            None
+        };
+        log::info!("received on_connect params: {:?}", hook_response);
+        
+        if let Some(response) = hook_response {
+            self.app_name = response.app_name;
+            self.stream_name = response.stream_name;
+        } 
 
         self.common
             .publish_to_stream_hub(

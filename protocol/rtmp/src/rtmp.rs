@@ -1,10 +1,13 @@
 use streamhub::define::StreamHubEventSender;
+use std::sync::Arc;
 
 use super::session::server_session;
 use commonlib::auth::Auth;
 use std::net::SocketAddr;
 use tokio::io::Error;
 use tokio::net::TcpListener;
+
+use streamhub::notify::Notifier;
 
 pub struct RtmpServer {
     address: String,
@@ -28,7 +31,7 @@ impl RtmpServer {
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), Error> {
+    pub async fn run(&mut self, notifier: Option<Arc<dyn Notifier>>) -> Result<(), Error> {
         let socket_addr: &SocketAddr = &self.address.parse().unwrap();
         let listener = TcpListener::bind(socket_addr).await?;
 
@@ -42,6 +45,7 @@ impl RtmpServer {
                 self.event_producer.clone(),
                 self.gop_num,
                 self.auth.clone(),
+                notifier.clone(),
             );
             tokio::spawn(async move {
                 if let Err(err) = session.run().await {
