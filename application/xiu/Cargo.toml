@@ -20,7 +20,9 @@ serde_json = { version = "1", default-features = false, features = [
     "raw_value",
     "std",
 ] }
-axum = "0.6.20"
+axum = "0.8.8"
+tokio-metrics = { version = "0.4.9", default-features = false }
+
 env_logger_extend = { path = "../../library/logger/" }
 streamhub = { path = "../../library/streamhub/" }
 commonlib = { path = "../../library/common/" }
