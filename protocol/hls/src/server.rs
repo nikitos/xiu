@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(playlist.stream_name, "stream");
         assert_eq!(playlist.file_name, "stream");
         assert!(matches!(playlist.file_type, HlsFileType::Playlist));
-        assert_eq!(playlist.to_file_path(), "./live/stream/stream.m3u8");
+        assert_eq!(playlist.to_file_path(), "./stream/stream.m3u8");
         assert_eq!(
             playlist.file_type.content_type(),
             "application/vnd.apple.mpegurl"
@@ -184,7 +184,7 @@ mod tests {
         assert_eq!(segment.stream_name, "stream");
         assert_eq!(segment.file_name, "123");
         assert!(matches!(segment.file_type, HlsFileType::Segment));
-        assert_eq!(segment.to_file_path(), "./live/stream/123.ts");
+        assert_eq!(segment.to_file_path(), "./stream/123.ts");
         assert_eq!(segment.file_type.content_type(), "video/mp2t");
 
         // Negative
