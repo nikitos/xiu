@@ -5,6 +5,7 @@ use {
         routing::{get, post},
         Json, Router,
     },
+    prometheus::{Encoder, TextEncoder},
     serde::Deserialize,
     serde_json::Value,
     std::net::Ipv4Addr,
@@ -252,6 +253,14 @@ impl ApiService {
             }
         }
     }
+
+    async fn metrics(&self) -> String {
+        let encoder = TextEncoder::new();
+        let metric_families = prometheus::gather();
+        let mut result = Vec::new();
+        encoder.encode(&metric_families, &mut result).unwrap();
+        String::from_utf8(result).unwrap()
+    }
 }
 
 pub async fn run(producer: StreamHubEventSender, port: usize) {
@@ -290,13 +299,17 @@ pub async fn run(producer: StreamHubEventSender, port: usize) {
         api_stop_relay_stream.stop_relay_stream(params).await
     };
 
+    let api_metrics = api.clone();
+    let metrics = move || async move { api_metrics.metrics().await };
+
     let app = Router::new()
         .route("/", get(root))
         .route("/api/query_whole_streams", get(query_streams))
         .route("/api/query_stream", post(query_stream))
         .route("/api/kick_off_client", post(kick_off))
         .route("/api/start_relay_stream", post(start_relay_stream))
-        .route("/api/stop_relay_stream", post(stop_relay_stream));
+        .route("/api/stop_relay_stream", post(stop_relay_stream))
+        .route("/metrics", get(metrics));
 
     log::info!("Http api server listening on http://0.0.0.0:{}", port);
     let listener = tokio::net::TcpListener::bind((Ipv4Addr::UNSPECIFIED, port as u16)).await.unwrap();

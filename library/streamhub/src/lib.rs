@@ -15,6 +15,9 @@ pub mod notify;
 pub mod statistics;
 pub mod stream;
 pub mod utils;
+pub mod prom;
+
+use prom::{STREAMS_TOTAL};
 
 use {
     crate::notify::Notifier,
@@ -629,7 +632,7 @@ impl StreamsHub {
                             }
                             self.un_pub_sub_events
                                 .insert(info.id, StreamHubEvent::UnPublish { identifier, info });
-
+                            STREAMS_TOTAL.inc();
                             Ok((frame_sender, packet_sender, Some(statistic_data_sender)))
                         }
                         Err(err) => {
@@ -658,6 +661,7 @@ impl StreamsHub {
                     if let Some(notifier) = &self.notifier {
                         notifier.on_unpublish_notify(&message).await;
                     }
+                    STREAMS_TOTAL.dec();
                 }
                 StreamHubEvent::Subscribe {
                     identifier,
