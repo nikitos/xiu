@@ -3790,6 +3790,7 @@ dependencies = [
  "bytes",
  "bytesio",
  "chrono",
+ "config",
  "failure",
  "indexmap",
  "log",
