@@ -183,7 +183,7 @@ impl Service {
             let address = format!("0.0.0.0:{listen_port}");
 
             let auth = Self::gen_auth(&rtmp_cfg_value.auth, &self.cfg.authsecret);
-            let mut rtmp_server = RtmpServer::new(address, producer, gop_num, auth);
+            let mut rtmp_server = RtmpServer::new(address, producer, gop_num, auth, Some(rtmp_cfg_value.clone()));
             tokio::spawn(async move {
                 if let Err(err) = rtmp_server.run(notifier).await {
                     log::error!("rtmp server error: {}", err);

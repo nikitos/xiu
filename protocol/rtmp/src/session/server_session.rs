@@ -1,6 +1,7 @@
 use commonlib::auth::SecretCarrier;
 
 use crate::chunk::{errors::UnpackErrorValue, packetizer::ChunkPacketizer};
+use ::config::RtmpConfig;
 
 use {
     super::{
@@ -30,7 +31,11 @@ use {
     },
     commonlib::auth::Auth,
     indexmap::IndexMap,
-    std::{sync::Arc, time::Duration},
+    std::{
+        collections::HashMap, 
+        sync::{Arc, Mutex as StdMutex}, 
+        time::{Duration, SystemTime, UNIX_EPOCH}
+    },
     streamhub::{
         define::{StreamHubEventMessage, StreamHubEventSender},
         stream::StreamIdentifier,
@@ -65,7 +70,10 @@ pub struct ServerSession {
     /*configure how many gops will be cached.*/
     gop_num: usize,
     auth: Option<Auth>,
-    notifier: Option<Arc<dyn Notifier>>
+    notifier: Option<Arc<dyn Notifier>>,
+    rate_limiter: Arc<StdMutex<HashMap<String, Vec<u64>>>>,
+    max_publish_per_stream: u32,
+    time_window_seconds: u64,
 }
 
 impl ServerSession {
@@ -74,7 +82,11 @@ impl ServerSession {
         event_producer: StreamHubEventSender,
         gop_num: usize,
         auth: Option<Auth>,
-        notifier: Option<Arc<dyn Notifier>>
+        notifier: Option<Arc<dyn Notifier>>,
+        _rate_limit_config: Option<RtmpConfig>,
+        rate_limiter: Arc<StdMutex<HashMap<String, Vec<u64>>>>,
+        max_publish_per_stream: u32,
+        time_window_seconds: u64,
     ) -> Self {
         let remote_addr = if let Ok(addr) = stream.peer_addr() {
             log::info!("server session: {}", addr.to_string());
@@ -85,6 +97,9 @@ impl ServerSession {
 
         let tcp_io: Box<dyn TNetIO + Send + Sync> = Box::new(TcpIO::new(stream));
         let net_io = Arc::new(Mutex::new(tcp_io));
+
+        log::info!("ServerSession using shared rate limiter: max_publish_per_stream={}, time_window_seconds={}", 
+                   max_publish_per_stream, time_window_seconds);
 
         Self {
             app_name: String::from(""),
@@ -107,6 +122,9 @@ impl ServerSession {
             gop_num,
             auth,
             notifier,
+            rate_limiter,
+            max_publish_per_stream,
+            time_window_seconds,
         }
     }
 
@@ -715,6 +733,31 @@ impl ServerSession {
                 }
             }
         }
+
+        // Check rate limit before proceeding
+        if self.check_rate_limit(&self.stream_name)? {
+            log::info!(
+                "[ S<-C ] [publish rate limit exceeded] app_name: {}, stream_name: {}",
+                self.app_name,
+                self.stream_name
+            );
+            
+            // Send error response to client
+            let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
+            netstream
+                .write_on_status(
+                    transaction_id,
+                    "error",
+                    "NetStream.Publish.BadName",
+                    "Publish rate limit exceeded for this stream"
+                )
+                .await?;
+            
+            return Err(SessionError {
+                value: SessionErrorValue::RateLimitExceeded,
+            });
+        }
+
         if let Some(auth) = &self.auth {
             auth.authenticate(
                 &self.stream_name,
@@ -800,4 +843,33 @@ impl ServerSession {
 
         Ok(())
     }
+
+    fn check_rate_limit(&self, stream_name: &str) -> Result<bool, SessionError> {
+        let mut rate_limiter = self.rate_limiter.lock().map_err(|_| SessionError {
+            value: SessionErrorValue::RateLimitError,
+        })?;
+
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|_| SessionError {
+                value: SessionErrorValue::RateLimitError,
+            })?
+            .as_secs();
+
+        let publish_times = rate_limiter.entry(stream_name.to_string()).or_insert_with(Vec::new);
+        // Remove timestamps older than the time window
+        publish_times.retain(|&timestamp| {
+            now.saturating_sub(timestamp) < self.time_window_seconds
+        });
+        
+        // Check if we've exceeded the limit
+        if publish_times.len() >= self.max_publish_per_stream as usize {
+            return Ok(true); // Rate limit exceeded
+        }
+
+        // Add current timestamp
+        publish_times.push(now);
+        Ok(false) // Rate limit not exceeded
+    }
+
 }

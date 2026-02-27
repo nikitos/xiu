@@ -37,6 +37,7 @@ impl Config {
                 pull: None,
                 push: None,
                 auth: None,
+                rate_limit: None,
             });
         }
 
@@ -110,6 +111,7 @@ pub struct RtmpConfig {
     pub pull: Option<RtmpPullConfig>,
     pub push: Option<Vec<RtmpPushConfig>>,
     pub auth: Option<AuthConfig>,
+    pub rate_limit: Option<RateLimitConfig>,
 }
 #[derive(Debug, Deserialize, Clone)]
 pub struct RtmpPullConfig {
@@ -209,6 +211,13 @@ pub struct AuthConfig {
     pub pull_enabled: bool,
     pub push_enabled: Option<bool>,
     pub algorithm: AuthAlgorithm,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct RateLimitConfig {
+    pub enabled: bool,
+    pub max_publish_per_stream: Option<u32>,
+    pub time_window_seconds: Option<u64>,
 }
 
 #[derive(Debug, Deserialize, Clone)]

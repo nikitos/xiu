@@ -83,6 +83,10 @@ pub enum SessionErrorValue {
     Finish,
     #[fail(display = "Auth err: {}", _0)]
     AuthError(#[cause] AuthError),
+    #[fail(display = "rate limit exceeded")]
+    RateLimitExceeded,
+    #[fail(display = "rate limit error")]
+    RateLimitError,
 }
 
 impl From<Amf0WriteError> for SessionError {
