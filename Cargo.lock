@@ -3283,6 +3283,7 @@ dependencies = [
  "bytesio",
  "chrono",
  "commonlib",
+ "config",
  "failure",
  "h264-decoder",
  "hex",
