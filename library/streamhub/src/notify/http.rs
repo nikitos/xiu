@@ -66,13 +66,14 @@ impl Notifier for HttpNotifier {
             {
                 Err(err) => {
                     log::error!("on_connect error: {}", err);
-                    None
+                    return None;
                 }
                 Ok(response) => {
                     let status = response.status();
                     let response = response.json().await.ok()?;
                     if status != 200 {
-                        self.kick_off_client(event).await;
+                        return None;
+                        //self.kick_off_client(event).await;
                     }
                     log::info!("on_connect success: {:?}", response);
                     response

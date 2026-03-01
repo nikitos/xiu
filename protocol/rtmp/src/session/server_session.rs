@@ -758,6 +758,53 @@ impl ServerSession {
             query
         );
 
+        let hook_response = if let Some(notifier) = self.notifier.clone() {
+            let publish_event = StreamHubEventMessage::Connect {
+                identifier: StreamIdentifier::Rtmp {
+                    app_name: self.app_name.clone(),
+                    stream_name: self.stream_name.clone(),
+                },
+                info: self.common.get_publisher_info(),
+            };
+            notifier.on_connect_notify(&publish_event).await
+        } else {
+            let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
+            netstream
+                .write_on_status(
+                    transaction_id,
+                    "error",
+                    "NetStream.Publish.BadName",
+                    "Stream publish rejected by hook"
+                )
+                .await?;
+            
+            return Err(SessionError {
+                value: SessionErrorValue::NoAppName,
+            });
+
+        };
+        log::info!("received on_connect params: {:?}", hook_response);
+        
+        if let Some(response) = hook_response {
+            self.app_name = response.app_name;
+            self.stream_name = response.stream_name;
+        } else {
+            let mut netstream = NetStreamWriter::new(Arc::clone(&self.io));
+            netstream
+                .write_on_status(
+                    transaction_id,
+                    "error",
+                    "NetStream.Publish.BadName",
+                    "Stream publish rejected by hook"
+                )
+                .await?;
+            
+            return Err(SessionError {
+                value: SessionErrorValue::NoAppName,
+            });
+
+        }
+     
         let mut event_messages = EventMessagesWriter::new(AsyncBytesWriter::new(self.io.clone()));
         event_messages.write_stream_begin(*stream_id).await?;
 
@@ -771,24 +818,6 @@ impl ServerSession {
             self.stream_name
         );
         
-        let hook_response = if let Some(notifier) = self.notifier.clone() {
-            let publish_event = StreamHubEventMessage::Connect {
-                identifier: StreamIdentifier::Rtmp {
-                    app_name: self.app_name.clone(),
-                    stream_name: self.stream_name.clone(),
-                },
-                info: self.common.get_publisher_info(),
-            };
-            notifier.on_connect_notify(&publish_event).await
-        } else {
-            None
-        };
-        log::info!("received on_connect params: {:?}", hook_response);
-        
-        if let Some(response) = hook_response {
-            self.app_name = response.app_name;
-            self.stream_name = response.stream_name;
-        } 
 
         self.common
             .publish_to_stream_hub(
