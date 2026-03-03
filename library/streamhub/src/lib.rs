@@ -632,7 +632,6 @@ impl StreamsHub {
                             }
                             self.un_pub_sub_events
                                 .insert(info.id, StreamHubEvent::UnPublish { identifier, info });
-                            STREAMS_TOTAL.inc();
                             Ok((frame_sender, packet_sender, Some(statistic_data_sender)))
                         }
                         Err(err) => {
@@ -661,7 +660,6 @@ impl StreamsHub {
                     if let Some(notifier) = &self.notifier {
                         notifier.on_unpublish_notify(&message).await;
                     }
-                    STREAMS_TOTAL.dec();
                 }
                 StreamHubEvent::Subscribe {
                     identifier,
@@ -849,6 +847,7 @@ impl StreamsHub {
 
         loop {
             log::info!("api_statistic:  stream count: {}", stream_count);
+            STREAMS_TOTAL.set(stream_count as f64);
             if let Some(stream_statistics) = stream_receiver.recv().await {
                 data.push(stream_statistics);
             }
