@@ -14,8 +14,6 @@ pub enum ConfigErrorValue {
     #[fail(display = "TOML deserialization error: {}", _0)]
     TomlError(toml::de::Error),
     #[fail(display = "IO error: {}", _0)]
-    TomlError(toml::de::Error),
-    #[fail(display = "IO error: {}", _0)]
     IOError(Error),
     #[fail(display = "JSON deserialization error: {}", _0)]
     JsonError(serde_json::Error),
