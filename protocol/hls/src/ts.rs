@@ -31,7 +31,7 @@ impl Ts {
 
         if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
             let body = ByteStream::from(data.to_vec());
-            ts_file_path = format!("{}/{}", self.s3_prefix, ts_file_name);
+            ts_file_path = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
                 
             let _result = client
                 .put_object()
