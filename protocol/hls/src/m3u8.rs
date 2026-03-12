@@ -29,20 +29,16 @@ pub struct M3u8 {
     need_record: bool,
     vod_m3u8_content: String,
     vod_m3u8_name: String,
-    
-    s3_client: Option<S3Client>,
-    s3_bucket: Option<String>,
-    s3_prefix: Option<String>,
+    prefix: Option<String>,
 }
 
 impl M3u8 {
     pub fn new(
         duration: i64,
+        app_name: String,
         stream_name: String,
         hls_config: Option<HlsConfig>,
         s3_client: Option<S3Client>,
-        s3_bucket: Option<String>,
-        s3_prefix: Option<String>,
     ) -> Self {
 
         let path = hls_config
@@ -70,6 +66,20 @@ impl M3u8 {
             String::default()
         };
 
+        let s3_config = hls_config.as_ref().and_then(|config| config.s3.clone());
+        let s3_bucket = s3_config.as_ref().map(|c| c.bucket.clone());
+        let s3_prefix = if let Some(prefix) = s3_config.as_ref().map(|c| c.prefix.clone()).unwrap() {
+            format!("{}/{}/", prefix, stream_name)
+        } else {
+            format!("{}", stream_name)
+        };
+
+        let prefix = if let Some(prefix) = hls_config.and_then(|config| config.prefix) {
+            Some(format!("{}/{}/", prefix, stream_name))
+        } else {
+            None
+        };
+        
         let mut m3u8 = Self {
             version: 3,
             sequence_no: utils::current_time(),
@@ -79,13 +89,12 @@ impl M3u8 {
             segments: VecDeque::new(),
             m3u8_folder: m3u8_folder.clone(),
             live_m3u8_name,
-            ts_handler: Ts::new(m3u8_folder, s3_client.clone(), s3_bucket.clone(), stream_name),
+            ts_handler: Ts::new(m3u8_folder, s3_client, s3_bucket, s3_prefix),
+            // record,
             need_record,
             vod_m3u8_content: String::default(),
             vod_m3u8_name,
-            s3_client: s3_client,
-            s3_bucket: s3_bucket,
-            s3_prefix: s3_prefix,
+            prefix: prefix,
         };
 
         if need_record {
@@ -108,13 +117,16 @@ impl M3u8 {
         if segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
             if !self.need_record {
-                self.ts_handler.delete(segment.name.clone()).await;
+                self.ts_handler.delete(segment.path).await;
             }
         }
         self.duration = std::cmp::max(duration, self.duration);
         let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no).await?;
-        // notify hls?
-        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name, ts_path, is_eof);
+        let ts_name_with_prefix = self.prefix
+            .as_ref()
+            .map(|prefix| format!("{}{}", prefix, ts_name))
+            .unwrap_or(ts_name);
+        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name_with_prefix, ts_path, is_eof);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);
@@ -133,7 +145,7 @@ impl M3u8 {
             file_handler.write_all(self.vod_m3u8_content.as_bytes())?;
         } else {
             for segment in &self.segments {
-                self.ts_handler.delete(segment.name.clone()).await;
+                self.ts_handler.delete(segment.path.clone()).await;
             }
         }
 

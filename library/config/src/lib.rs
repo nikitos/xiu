@@ -79,6 +79,7 @@ impl Config {
                 fragment: None,
                 aof_ratio: None,
                 live_ts_count: None,
+                prefix: None,
                 s3: None,
             });
         }
@@ -157,6 +158,7 @@ pub struct HlsConfig {
     pub fragment: Option<i64>,
     pub aof_ratio: Option<i64>,
     pub live_ts_count: Option<usize>,
+    pub prefix: Option<String>,
     pub s3: Option<S3Config>,
 }
 

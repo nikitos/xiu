@@ -26,19 +26,17 @@ impl Ts {
         }
     }
     pub async fn write(&mut self, data: BytesMut, sequence_no: u32) -> Result<(String, String), MediaError> {
+        let ts_file_path;
         let ts_file_name = format!("{}.ts", sequence_no);
-        let ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
-        
-        // Write to local file
 
-        // Upload to S3 if configured
         if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
             let body = ByteStream::from(data.to_vec());
-            let key = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
+            ts_file_path = format!("{}/{}", self.s3_prefix, ts_file_name);
+                
             let _result = client
                 .put_object()
                 .bucket(bucket)
-                .key(&key)
+                .key(&ts_file_path)
                 .acl(ObjectCannedAcl::PublicRead)
                 .body(body)
                 .send()
@@ -50,24 +48,20 @@ impl Ts {
                     )),
                 })?;
         } else {
+            ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
             let mut ts_file_handler = File::create(ts_file_path.clone())?;
             ts_file_handler.write_all(&data[..])?;
         }
 
         Ok((ts_file_name, ts_file_path))
     }
-    pub async fn delete(&mut self, ts_file_name: String) {
 
-        let ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
-        // Delete from local file system
-        
-        // Delete from S3 if configured
+    pub async fn delete(&mut self, ts_file_path: String) {
         if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
-            let key = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
             let _result = client
                 .delete_object()
                 .bucket(bucket)
-                .key(&key)
+                .key(&ts_file_path)
                 .send()
                 .await
                 .map_err(|e| MediaError {

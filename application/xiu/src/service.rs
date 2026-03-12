@@ -328,6 +328,41 @@ impl Service {
                 return Ok(());
             }
 
+            let s3_client = if let Some(hls_config) = &self.cfg.hls {
+                if let Some(s3_config) = &hls_config.s3 {
+                    if s3_config.enabled {
+                        let mut config_builder = aws_config::from_env();
+
+                        if let Some(access_key) = &s3_config.access_key {
+                            let credentials = aws_credential_types::Credentials::new(
+                                access_key.clone(),
+                                s3_config.secret_key.clone().unwrap_or_default(),
+                                None,
+                                None,
+                                "hls_s3_client",
+                            );
+                            config_builder = config_builder.credentials_provider(credentials);
+                        }
+
+                        config_builder = config_builder.region(aws_sdk_s3::config::Region::new(s3_config.region.clone()));
+
+                        if let Some(endpoint) = &s3_config.endpoint {
+                            config_builder = config_builder.endpoint_url(endpoint.clone());
+                        }
+
+                        let config = config_builder.load().await;
+                        Some(aws_sdk_s3::Client::new(&config))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+
             let event_producer = stream_hub.get_hub_event_sender();
             let cient_event_consumer = stream_hub.get_client_event_consumer();
             
