@@ -6,7 +6,8 @@ use {
     streamhub::{define::{Segment}},
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
-
+use mpeg2ts::ts::TsPacketReader;
+use mse_fmp4::mpeg2_ts;
 pub struct M3u8 {
     version: u16,
     sequence_no: u32,
@@ -48,6 +49,8 @@ impl M3u8 {
 
         let m3u8_folder = format!("{path}/{stream_name}");
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
+        let m3u8_folder_audio = format!("{path}/{stream_name}/audio");
+        fs::create_dir_all(m3u8_folder_audio.clone()).unwrap();
         let live_m3u8_name = format!("{stream_name}.m3u8");
 
         let need_record = hls_config
@@ -121,7 +124,11 @@ impl M3u8 {
             }
         }
         self.duration = std::cmp::max(duration, self.duration);
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no).await?;
+        let (video_ts, audio_ts) = mpeg2_ts::to_separate_ts(TsPacketReader::new(&ts_data[..])).unwrap();
+
+        let (ts_name, ts_path) = self.ts_handler.write(video_ts, self.sequence_no, false).await?;
+        let (_ts_name, _ts_path) = self.ts_handler.write(audio_ts, self.sequence_no, true).await?;
+
         let ts_name_with_prefix = self.prefix
             .as_ref()
             .map(|prefix| format!("{}{}", prefix, ts_name))

@@ -7,6 +7,7 @@ use {
     std::{fs, fs::File, io::Write},
 };
 
+
 pub struct Ts {
     live_path: String,
     s3_client: Option<S3Client>,
@@ -25,13 +26,17 @@ impl Ts {
             s3_prefix,
         }
     }
-    pub async fn write(&mut self, data: BytesMut, sequence_no: u32) -> Result<(String, String), MediaError> {
+    pub async fn write(&mut self, data: BytesMut, sequence_no: u32, audio: bool) -> Result<(String, String), MediaError> {
         let ts_file_path;
         let ts_file_name = format!("{}.ts", sequence_no);
 
         if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
             let body = ByteStream::from(data.to_vec());
-            ts_file_path = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
+            if audio {
+                ts_file_path = format!("{}/audio/{}", self.s3_prefix.to_uppercase(), ts_file_name);
+            } else {
+                ts_file_path = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
+            }
                 
             let _result = client
                 .put_object()
@@ -48,7 +53,11 @@ impl Ts {
                     )),
                 })?;
         } else {
-            ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
+            if audio {
+                ts_file_path = format!("{}/audio/{}", self.live_path, ts_file_name);
+            } else {
+                ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
+            }
             let mut ts_file_handler = File::create(ts_file_path.clone())?;
             ts_file_handler.write_all(&data[..])?;
         }
