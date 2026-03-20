@@ -62,6 +62,14 @@ impl From<std::io::Error> for MediaError {
     }
 }
 
+impl From<mpeg2ts::Error> for MediaError {
+    fn from(_error: mpeg2ts::Error) -> Self {
+        MediaError {
+            value: MediaErrorValue::Error,
+        }
+    }
+}
+
 impl fmt::Display for MediaError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self.value, f)

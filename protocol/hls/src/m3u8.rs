@@ -7,7 +7,12 @@ use {
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
 use mpeg2ts::ts::TsPacketReader;
-use mse_fmp4::mpeg2_ts;
+use mpeg2ts::pes::{PesPacketReader, ReadPesPacket};
+
+use xmpegts::{
+    define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
+    ts::TsMuxer,
+};
 pub struct M3u8 {
     version: u16,
     sequence_no: u32,
@@ -106,6 +111,45 @@ impl M3u8 {
         m3u8
     }
 
+    pub fn to_separate_ts<R: std::io::Read>(
+        &mut self,
+        ts_reader: R,
+    ) -> std::result::Result<(BytesMut, BytesMut), MediaError> {
+
+        let mut video_muxer = TsMuxer::new();
+        let mut audio_muxer = TsMuxer::new();
+
+        let video_pid = video_muxer
+            .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
+            .map_err(MediaError::from)?;
+        let audio_pid = audio_muxer
+            .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
+            .map_err(MediaError::from)?;
+
+        let mut reader = PesPacketReader::new(TsPacketReader::new(ts_reader));
+        while let Some(pes) = reader.read_pes_packet().map_err(MediaError::from)? {
+            let pts = match pes.header.pts {
+                Some(ts) => ts,
+                None => continue,
+            };
+            let dts = pes.header.dts.unwrap_or(pts);
+
+            let payload = BytesMut::from(&pes.data[..]);
+
+            if pes.header.stream_id.is_video() {
+                video_muxer
+                    .write(video_pid, pts.as_u64() as i64, dts.as_u64() as i64, MPEG_FLAG_IDR_FRAME, payload)
+                    .map_err(MediaError::from)?;
+            } else if pes.header.stream_id.is_audio() {
+                audio_muxer
+                    .write(audio_pid, pts.as_u64() as i64, dts.as_u64() as i64, 0, payload)
+                    .map_err(MediaError::from)?;
+            }
+        }
+
+        Ok((video_muxer.get_data(), audio_muxer.get_data()))
+    }
+
     pub async fn add_segment(
         &mut self,
         duration: i64,
@@ -120,11 +164,12 @@ impl M3u8 {
         if segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
             if !self.need_record {
-                self.ts_handler.delete(segment.path).await;
+                self.ts_handler.delete(segment.name.clone(), false).await;
+                self.ts_handler.delete(segment.name, true).await;
             }
         }
         self.duration = std::cmp::max(duration, self.duration);
-        let (video_ts, audio_ts) = mpeg2_ts::to_separate_ts(TsPacketReader::new(&ts_data[..])).unwrap();
+        let (video_ts, audio_ts) = self.to_separate_ts(&ts_data[..])?;
 
         let (ts_name, ts_path) = self.ts_handler.write(video_ts, self.sequence_no, false).await?;
         let (_ts_name, _ts_path) = self.ts_handler.write(audio_ts, self.sequence_no, true).await?;
@@ -152,7 +197,8 @@ impl M3u8 {
             file_handler.write_all(self.vod_m3u8_content.as_bytes())?;
         } else {
             for segment in &self.segments {
-                self.ts_handler.delete(segment.path.clone()).await;
+                self.ts_handler.delete(segment.name.clone(), false).await;
+                self.ts_handler.delete(segment.name.clone(), true).await;
             }
         }
 
