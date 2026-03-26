@@ -111,6 +111,46 @@ impl M3u8 {
         m3u8
     }
 
+    fn is_idr_frame(payload: &[u8]) -> bool {
+        // H.264 NAL unit types:
+        // 1: Non-IDR slice
+        // 5: IDR slice (keyframe)
+        // 6: SEI
+        // 7: SPS
+        // 8: PPS
+        // 9: Access unit delimiter
+        
+        let mut i = 0;
+        while i < payload.len() {
+            // Look for start code (0x000001 or 0x00000001)
+            if i + 3 < payload.len() && payload[i] == 0x00 && payload[i + 1] == 0x00 {
+                let start_code_len = if payload[i + 2] == 0x01 {
+                    3
+                } else if i + 4 < payload.len() && payload[i + 2] == 0x00 && payload[i + 3] == 0x01 {
+                    4
+                } else {
+                    i += 1;
+                    continue;
+                };
+                
+                let nal_start = i + start_code_len;
+                if nal_start < payload.len() {
+                    let nal_header = payload[nal_start];
+                    let nal_type = nal_header & 0x1F;
+                    
+                    // Check if this is an IDR NAL unit (type 5)
+                    if nal_type == 5 {
+                        return true;
+                    }
+                }
+                i = nal_start;
+            } else {
+                i += 1;
+            }
+        }
+        false
+    }
+
     pub fn to_separate_ts<R: std::io::Read>(
         &mut self,
         ts_reader: R,
@@ -137,8 +177,14 @@ impl M3u8 {
             let payload = BytesMut::from(&pes.data[..]);
 
             if pes.header.stream_id.is_video() {
+                // Only set IDR flag for actual IDR frames
+                let flags = if Self::is_idr_frame(&pes.data) {
+                    MPEG_FLAG_IDR_FRAME
+                } else {
+                    0
+                };
                 video_muxer
-                    .write(video_pid, pts.as_u64() as i64, dts.as_u64() as i64, MPEG_FLAG_IDR_FRAME, payload)
+                    .write(video_pid, pts.as_u64() as i64, dts.as_u64() as i64, flags, payload)
                     .map_err(MediaError::from)?;
             } else if pes.header.stream_id.is_audio() {
                 audio_muxer
