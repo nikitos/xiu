@@ -172,6 +172,7 @@ impl Flv2HlsRemuxer {
                 }
             }
             FlvDemuxerData::Audio { data } => {
+                return Ok(());
                 if !data.has_data {
                     return Ok(());
                 }
