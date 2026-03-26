@@ -167,6 +167,11 @@ impl M3u8 {
             .map_err(MediaError::from)?;
 
         let mut reader = PesPacketReader::new(TsPacketReader::new(ts_reader));
+        let mut first_video_pts: Option<i64> = None;
+        let mut first_audio_pts: Option<i64> = None;
+        let mut video_pts_offset: i64 = 0;
+        let mut audio_pts_offset: i64 = 0;
+        
         while let Some(pes) = reader.read_pes_packet().map_err(MediaError::from)? {
             let pts = match pes.header.pts {
                 Some(ts) => ts,
@@ -177,6 +182,14 @@ impl M3u8 {
             let payload = BytesMut::from(&pes.data[..]);
 
             if pes.header.stream_id.is_video() {
+                // Normalize video PTS to start from 0
+                if first_video_pts.is_none() {
+                    first_video_pts = Some(pts.as_u64() as i64);
+                    video_pts_offset = pts.as_u64() as i64;
+                }
+                let normalized_pts = pts.as_u64() as i64 - video_pts_offset;
+                let normalized_dts = dts.as_u64() as i64 - video_pts_offset;
+                
                 // Only set IDR flag for actual IDR frames
                 let flags = if Self::is_idr_frame(&pes.data) {
                     MPEG_FLAG_IDR_FRAME
@@ -184,11 +197,19 @@ impl M3u8 {
                     0
                 };
                 video_muxer
-                    .write(video_pid, pts.as_u64() as i64, dts.as_u64() as i64, flags, payload)
+                    .write(video_pid, normalized_pts, normalized_dts, flags, payload)
                     .map_err(MediaError::from)?;
             } else if pes.header.stream_id.is_audio() {
+                // Normalize audio PTS to start from 0
+                if first_audio_pts.is_none() {
+                    first_audio_pts = Some(pts.as_u64() as i64);
+                    audio_pts_offset = pts.as_u64() as i64;
+                }
+                let normalized_pts = pts.as_u64() as i64 - audio_pts_offset;
+                let normalized_dts = dts.as_u64() as i64 - audio_pts_offset;
+                
                 audio_muxer
-                    .write(audio_pid, pts.as_u64() as i64, dts.as_u64() as i64, 0, payload)
+                    .write(audio_pid, normalized_pts, normalized_dts, 0, payload)
                     .map_err(MediaError::from)?;
             }
         }
