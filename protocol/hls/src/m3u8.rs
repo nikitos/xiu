@@ -48,6 +48,8 @@ impl M3u8 {
 
         let m3u8_folder = format!("{path}/{stream_name}");
         fs::create_dir_all(m3u8_folder.clone()).unwrap();
+        let m3u8_folder_audio = format!("{path}/{stream_name}/audio");
+        fs::create_dir_all(m3u8_folder_audio.clone()).unwrap();
         let live_m3u8_name = format!("{stream_name}.m3u8");
 
         let need_record = hls_config
@@ -109,6 +111,7 @@ impl M3u8 {
         discontinuity: bool,
         is_eof: bool,
         ts_data: BytesMut,
+        tsa_data: BytesMut,
     ) -> Result<(), MediaError> {
         let segment_count: usize = self.segments.len();
         self.sequence_no = utils::current_time();
@@ -117,11 +120,13 @@ impl M3u8 {
         if segment_count >= self.live_ts_count {
             let segment = self.segments.pop_front().unwrap();
             if !self.need_record {
-                self.ts_handler.delete(segment.path).await;
+                self.ts_handler.delete(segment.name.clone(), false).await;
+                self.ts_handler.delete(segment.name, true).await;
             }
         }
         self.duration = std::cmp::max(duration, self.duration);
-        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no).await?;
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no, false).await?;
+        let (_ts_name, _ts_path) = self.ts_handler.write(tsa_data, self.sequence_no, true).await?;
         let ts_name_with_prefix = self.prefix
             .as_ref()
             .map(|prefix| format!("{}{}", prefix, ts_name))
@@ -145,7 +150,8 @@ impl M3u8 {
             file_handler.write_all(self.vod_m3u8_content.as_bytes())?;
         } else {
             for segment in &self.segments {
-                self.ts_handler.delete(segment.path.clone()).await;
+                self.ts_handler.delete(segment.name.clone(), false).await;
+                self.ts_handler.delete(segment.name.clone(), true).await;
             }
         }
 

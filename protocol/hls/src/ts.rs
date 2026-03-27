@@ -25,14 +25,12 @@ impl Ts {
             s3_prefix,
         }
     }
-    pub async fn write(&mut self, data: BytesMut, sequence_no: u32) -> Result<(String, String), MediaError> {
-        let ts_file_path;
+    pub async fn write(&mut self, data: BytesMut, sequence_no: u32, audio: bool) -> Result<(String, String), MediaError> {
         let ts_file_name = format!("{}.ts", sequence_no);
+        let ts_file_path = self.get_filepath(ts_file_name.clone(), audio);
 
         if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
             let body = ByteStream::from(data.to_vec());
-            ts_file_path = format!("{}/{}", self.s3_prefix.to_uppercase(), ts_file_name);
-                
             let _result = client
                 .put_object()
                 .bucket(bucket)
@@ -48,7 +46,6 @@ impl Ts {
                     )),
                 })?;
         } else {
-            ts_file_path = format!("{}/{}", self.live_path, ts_file_name);
             let mut ts_file_handler = File::create(ts_file_path.clone())?;
             ts_file_handler.write_all(&data[..])?;
         }
@@ -56,7 +53,8 @@ impl Ts {
         Ok((ts_file_name, ts_file_path))
     }
 
-    pub async fn delete(&mut self, ts_file_path: String) {
+    pub async fn delete(&mut self, ts_file_name: String, audio: bool) {
+        let ts_file_path = self.get_filepath(ts_file_name.clone(), audio);
         if let (Some(client), Some(bucket)) = (&self.s3_client, &self.s3_bucket) {
             let _result = client
                 .delete_object()
@@ -72,6 +70,15 @@ impl Ts {
                 });
         } else {
             fs::remove_file(ts_file_path).unwrap();
+        }
+    }
+
+    fn get_filepath(&mut self, ts_file_name: String, audio: bool) -> String {
+        let pfx = if self.s3_client.is_some() {self.s3_prefix.clone()} else {self.live_path.clone()};
+        if audio {
+                format!("{}/audio/{}", pfx, ts_file_name)
+        } else {
+                format!("{}/{}", pfx, ts_file_name)
         }
     }
 }
