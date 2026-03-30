@@ -11,7 +11,9 @@ use {
     xmpegts::{
         define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
         ts::TsMuxer,
-    }
+    },
+    rust_decimal::Decimal,
+    rust_decimal::prelude::ToPrimitive,
 };
 
 pub struct Flv2HlsRemuxer {
@@ -26,6 +28,7 @@ pub struct Flv2HlsRemuxer {
 
     last_dts: i64,
     last_pts: i64,
+    last_audio_dts: Decimal,
 
     duration: i64,
     need_new_segment: bool,
@@ -86,6 +89,7 @@ impl Flv2HlsRemuxer {
 
             last_dts: 0,
             last_pts: 0,
+            last_audio_dts: Decimal::ZERO,
 
             duration,
             need_new_segment: false,
@@ -234,8 +238,10 @@ impl Flv2HlsRemuxer {
             }
             FlvDemuxerData::Audio { data } => {
                 payload.extend_from_slice(&data.data[..]);
+                let tts = (self.last_audio_dts * Decimal::new(90, 0)).to_i64().unwrap();
                 self.tsa_muxer
-                    .write(pid, pts * 90, dts * 90, flags, payload)?;
+                    .write(pid,tts ,tts, flags, payload)?;
+                self.last_audio_dts = self.last_audio_dts  + data.frame_duration;
             }
             _ => return Ok(()),
         }

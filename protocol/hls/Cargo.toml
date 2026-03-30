@@ -19,6 +19,7 @@ axum = { version = "0.8.8" }
 tokio-util = { version = "0.7.18", features = ["codec"] }
 aws-config = { version = "1.8.14", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.124.0"
+rust_decimal = "1.30.0"
 
 streamhub = { path = "../../library/streamhub/" }
 xmpegts = { path = "../../library/container/mpegts/" }

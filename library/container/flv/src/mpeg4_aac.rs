@@ -5,6 +5,7 @@ use {
         bits_reader::BitsReader, bits_writer::BitsWriter, bytes_reader::BytesReader,
         bytes_writer::BytesWriter,
     },
+    rust_decimal::Decimal,
 };
 
 const AAC_FREQUENCE_SIZE: usize = 13;
@@ -127,6 +128,14 @@ impl Mpeg4AacProcessor {
         self.bytes_reader.extract_remaining_bytes();
 
         Ok(self)
+    }
+
+    pub fn audio_frame_duration(&self) -> Decimal {
+        let sample_rate = Decimal::new(self.mpeg4_aac.sampling_frequency as i64, 3);
+        if sample_rate.is_zero() {
+            return Decimal::ZERO;
+        }
+        Decimal::new(1024 * 1000, 3) / sample_rate
     }
 
     pub fn audio_specific_config_load2(&mut self) -> Result<(), MpegAacError> {

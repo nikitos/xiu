@@ -13,6 +13,7 @@ use {
     byteorder::BigEndian,
     bytes::BytesMut,
     bytesio::bytes_reader::BytesReader,
+    rust_decimal::Decimal,
 };
 
 /*
@@ -76,6 +77,7 @@ pub struct FlvDemuxerAudioData {
     pub sound_format: u8,
     pub dts: i64,
     pub pts: i64,
+    pub frame_duration: Decimal,
     pub data: BytesMut,
 }
 
@@ -86,6 +88,7 @@ impl FlvDemuxerAudioData {
             sound_format: 0,
             dts: 0,
             pts: 0,
+            frame_duration: Decimal::ZERO,
             data: BytesMut::new(),
         }
     }
@@ -199,6 +202,7 @@ impl FlvAudioTagDemuxer {
                         sound_format: tag_header.sound_format,
                         pts: timestamp as i64,
                         dts: timestamp as i64,
+                        frame_duration: self.aac_processor.audio_frame_duration(),
                         data: self.aac_processor.bytes_writer.extract_current_bytes(),
                     };
                     //print!("flv demux audio payload length {}\n", audio_data.data.len());
