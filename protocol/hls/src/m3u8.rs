@@ -6,13 +6,6 @@ use {
     streamhub::{define::{Segment}},
     std::{collections::VecDeque, fs, fs::File, io::Write},
 };
-use mpeg2ts::ts::TsPacketReader;
-use mpeg2ts::pes::{PesPacketReader, ReadPesPacket};
-
-use xmpegts::{
-    define::{epsi_stream_type, MPEG_FLAG_IDR_FRAME},
-    ts::TsMuxer,
-};
 pub struct M3u8 {
     version: u16,
     sequence_no: u32,
@@ -151,78 +144,13 @@ impl M3u8 {
         false
     }
 
-    pub fn to_separate_ts<R: std::io::Read>(
-        &mut self,
-        ts_reader: R,
-    ) -> std::result::Result<(BytesMut, BytesMut), MediaError> {
-
-        let mut video_muxer = TsMuxer::new();
-        let mut audio_muxer = TsMuxer::new();
-
-        let video_pid = video_muxer
-            .add_stream(epsi_stream_type::PSI_STREAM_H264, BytesMut::new())
-            .map_err(MediaError::from)?;
-        let audio_pid = audio_muxer
-            .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
-            .map_err(MediaError::from)?;
-
-        let mut reader = PesPacketReader::new(TsPacketReader::new(ts_reader));
-        let mut first_video_pts: Option<i64> = None;
-        let mut first_audio_pts: Option<i64> = None;
-        let mut video_pts_offset: i64 = 0;
-        let mut audio_pts_offset: i64 = 0;
-        
-        while let Some(pes) = reader.read_pes_packet().map_err(MediaError::from)? {
-            let pts = match pes.header.pts {
-                Some(ts) => ts,
-                None => continue,
-            };
-            let dts = pes.header.dts.unwrap_or(pts);
-
-            let payload = BytesMut::from(&pes.data[..]);
-
-            if pes.header.stream_id.is_video() {
-                // Normalize video PTS to start from 0
-                if first_video_pts.is_none() {
-                    first_video_pts = Some(pts.as_u64() as i64);
-                    video_pts_offset = pts.as_u64() as i64;
-                }
-                let normalized_pts = pts.as_u64() as i64 - video_pts_offset;
-                let normalized_dts = dts.as_u64() as i64 - video_pts_offset;
-                
-                // Only set IDR flag for actual IDR frames
-                let flags = if Self::is_idr_frame(&pes.data) {
-                    MPEG_FLAG_IDR_FRAME
-                } else {
-                    0
-                };
-                video_muxer
-                    .write(video_pid, normalized_pts, normalized_dts, flags, payload)
-                    .map_err(MediaError::from)?;
-            } else if pes.header.stream_id.is_audio() {
-                // Normalize audio PTS to start from 0
-                if first_audio_pts.is_none() {
-                    first_audio_pts = Some(pts.as_u64() as i64);
-                    audio_pts_offset = pts.as_u64() as i64;
-                }
-                let normalized_pts = pts.as_u64() as i64 - audio_pts_offset;
-                let normalized_dts = dts.as_u64() as i64 - audio_pts_offset;
-                
-                audio_muxer
-                    .write(audio_pid, normalized_pts, normalized_dts, 0, payload)
-                    .map_err(MediaError::from)?;
-            }
-        }
-
-        Ok((video_muxer.get_data(), audio_muxer.get_data()))
-    }
-
     pub async fn add_segment(
         &mut self,
         duration: i64,
         discontinuity: bool,
         is_eof: bool,
         ts_data: BytesMut,
+        tsa_data: BytesMut,
     ) -> Result<(), MediaError> {
         let segment_count: usize = self.segments.len();
         self.sequence_no = utils::current_time();
@@ -236,11 +164,8 @@ impl M3u8 {
             }
         }
         self.duration = std::cmp::max(duration, self.duration);
-        let (video_ts, audio_ts) = self.to_separate_ts(&ts_data[..])?;
-
-        let (ts_name, ts_path) = self.ts_handler.write(video_ts, self.sequence_no, false).await?;
-        let (_ts_name, _ts_path) = self.ts_handler.write(audio_ts, self.sequence_no, true).await?;
-
+        let (ts_name, ts_path) = self.ts_handler.write(ts_data, self.sequence_no, false).await?;
+        let (_ts_name, _ts_path) = self.ts_handler.write(tsa_data, self.sequence_no, true).await?;
         let ts_name_with_prefix = self.prefix
             .as_ref()
             .map(|prefix| format!("{}{}", prefix, ts_name))

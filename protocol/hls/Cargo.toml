@@ -22,7 +22,6 @@ aws-sdk-s3 = "1.124.0"
 
 streamhub = { path = "../../library/streamhub/" }
 xmpegts = { path = "../../library/container/mpegts/" }
-mpeg2ts= "0.6.0"
 xflv = { path = "../../library/container/flv/" }
 commonlib = { path = "../../library/common/" }
 config = { path = "../../library/config/" }

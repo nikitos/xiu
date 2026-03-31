@@ -129,6 +129,10 @@ impl Mpeg4AacProcessor {
         Ok(self)
     }
 
+    pub fn audio_frame_duration(&self) -> i64 {
+        (1024 * 90000) / self.mpeg4_aac.sampling_frequency as i64
+    }
+
     pub fn audio_specific_config_load2(&mut self) -> Result<(), MpegAacError> {
         let remain_bytes = self.bytes_reader.extract_remaining_bytes();
         // self.bits_reader.extend_from_bytesmut(remain_bytes);

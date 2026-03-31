@@ -19,12 +19,14 @@ pub struct Flv2HlsRemuxer {
     audio_demuxer: FlvAudioTagDemuxer,
 
     ts_muxer: TsMuxer,
+    tsa_muxer: TsMuxer,
 
     last_ts_dts: i64,
     last_ts_pts: i64,
 
     last_dts: i64,
     last_pts: i64,
+    last_audio_dts: i64,
 
     duration: i64,
     need_new_segment: bool,
@@ -48,7 +50,8 @@ impl Flv2HlsRemuxer {
         s3_client: Option<S3Client>,
     ) -> Self {
         let mut ts_muxer = TsMuxer::new();
-        let audio_pid = ts_muxer
+        let mut tsa_muxer = TsMuxer::new();
+        let audio_pid = tsa_muxer
             .add_stream(epsi_stream_type::PSI_STREAM_AAC, BytesMut::new())
             .unwrap();
         let video_pid = ts_muxer
@@ -77,12 +80,14 @@ impl Flv2HlsRemuxer {
             audio_demuxer: FlvAudioTagDemuxer::new(),
 
             ts_muxer,
+            tsa_muxer,
 
             last_ts_dts: 0,
             last_ts_pts: 0,
 
             last_dts: 0,
             last_pts: 0,
+            last_audio_dts: 0,
 
             duration,
             need_new_segment: false,
@@ -126,7 +131,9 @@ impl Flv2HlsRemuxer {
     }
 
     pub async fn flush_remaining_data(&mut self) -> Result<(), MediaError> {
+        // TODO: check if large segments starts here
         let data = self.ts_muxer.get_data();
+        let adata = self.tsa_muxer.get_data();
         let mut discontinuity: bool = false;
         if self.last_dts > self.last_ts_dts + 15 * 1000 {
             discontinuity = true;
@@ -136,6 +143,7 @@ impl Flv2HlsRemuxer {
             discontinuity,
             true,
             data,
+            adata,
         ).await?;
         self.m3u8_handler.refresh_playlist()?;
 
@@ -159,7 +167,6 @@ impl Flv2HlsRemuxer {
                 pts = data.pts;
                 dts = data.dts;
                 pid = self.video_pid;
-                payload.extend_from_slice(&data.data[..]);
 
                 // log::info!("dts: {} selfdts: {} duration: {}", dts, self.last_ts_dts, self.duration); 
 
@@ -179,7 +186,6 @@ impl Flv2HlsRemuxer {
                 pts = data.pts;
                 dts = data.dts;
                 pid = self.audio_pid;
-                payload.extend_from_slice(&data.data[..]);
 
                 if dts - self.last_ts_dts >= self.duration * 1000 * self.aof_ratio {
                     self.need_new_segment = true;
@@ -193,7 +199,8 @@ impl Flv2HlsRemuxer {
             if dts > self.last_ts_dts + 15 * 1000 {
                 discontinuity = true;
             }
-            let data = self.ts_muxer.get_data();
+            let vdata = self.ts_muxer.get_data();
+            let adata = self.tsa_muxer.get_data();
 
             if let Some(segment) = self.m3u8_handler.segments.back() {
                 let identifier = StreamIdentifier::Rtmp { app_name: self.app_name.clone(), stream_name: self.stream_name.clone() };
@@ -208,10 +215,11 @@ impl Flv2HlsRemuxer {
                 log::info!("on_hls success: {:?}", identifier);
             }
             self.m3u8_handler
-                .add_segment(dts - self.last_ts_dts, discontinuity, false, data).await?;
+                .add_segment(dts - self.last_ts_dts, discontinuity, false, vdata, adata).await?;
             self.m3u8_handler.refresh_playlist()?;
 
             self.ts_muxer.reset();
+            self.tsa_muxer.reset();
             self.last_ts_dts = dts;
             self.last_ts_pts = pts;
             self.need_new_segment = false;
@@ -220,8 +228,20 @@ impl Flv2HlsRemuxer {
         self.last_dts = dts;
         self.last_pts = pts;
 
-        self.ts_muxer
-            .write(pid, pts * 90, dts * 90, flags, payload)?;
+        match flv_demux_data {
+            FlvDemuxerData::Video { data } => {
+                payload.extend_from_slice(&data.data[..]);
+                self.ts_muxer
+                    .write(pid, pts * 90, dts * 90, flags, payload)?;
+            }
+            FlvDemuxerData::Audio { data } => {
+                payload.extend_from_slice(&data.data[..]);
+                self.tsa_muxer
+                    .write(pid,self.last_audio_dts ,self.last_audio_dts, flags, payload)?;
+                self.last_audio_dts += data.frame_duration;
+            }
+            _ => return Ok(()),
+        }
 
         Ok(())
     }
