@@ -26,6 +26,7 @@ pub struct Flv2HlsRemuxer {
 
     last_dts: i64,
     last_pts: i64,
+    last_audio_dts: i64,
 
     duration: i64,
     need_new_segment: bool,
@@ -86,6 +87,7 @@ impl Flv2HlsRemuxer {
 
             last_dts: 0,
             last_pts: 0,
+            last_audio_dts: 0,
 
             duration,
             need_new_segment: false,
@@ -235,7 +237,8 @@ impl Flv2HlsRemuxer {
             FlvDemuxerData::Audio { data } => {
                 payload.extend_from_slice(&data.data[..]);
                 self.tsa_muxer
-                    .write(pid, pts * 90, dts * 90, flags, payload)?;
+                    .write(pid,self.last_audio_dts ,self.last_audio_dts, flags, payload)?;
+                self.last_audio_dts += data.frame_duration;
             }
             _ => return Ok(()),
         }
