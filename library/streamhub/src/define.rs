@@ -473,6 +473,7 @@ pub struct Segment {
     pub name: String,
     pub path: String,
     pub is_eof: bool,
+    pub ts_pts: u64,
 }
 
 impl Segment {
@@ -483,6 +484,7 @@ impl Segment {
         name: String,
         path: String,
         is_eof: bool,
+        ts_pts: u64,
     ) -> Self {
         Self {
             duration,
@@ -491,6 +493,7 @@ impl Segment {
             name,
             path,
             is_eof,
+            ts_pts,
         }
     }
 }

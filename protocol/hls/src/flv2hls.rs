@@ -144,6 +144,7 @@ impl Flv2HlsRemuxer {
             true,
             data,
             adata,
+            self.last_pts as u64,
         ).await?;
         self.m3u8_handler.refresh_playlist()?;
 
@@ -215,7 +216,7 @@ impl Flv2HlsRemuxer {
                 log::info!("on_hls success: {:?}", identifier);
             }
             self.m3u8_handler
-                .add_segment(dts - self.last_ts_dts, discontinuity, false, vdata, adata).await?;
+                .add_segment(dts - self.last_ts_dts, discontinuity, false, vdata, adata, self.last_ts_pts as u64).await?;
             self.m3u8_handler.refresh_playlist()?;
 
             self.ts_muxer.reset();

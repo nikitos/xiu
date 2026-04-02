@@ -112,6 +112,7 @@ impl M3u8 {
         is_eof: bool,
         ts_data: BytesMut,
         tsa_data: BytesMut,
+        ts_pts: u64,
     ) -> Result<(), MediaError> {
         let segment_count: usize = self.segments.len();
         self.sequence_no = utils::current_time();
@@ -131,7 +132,7 @@ impl M3u8 {
             .as_ref()
             .map(|prefix| format!("{}{}", prefix, ts_name))
             .unwrap_or(ts_name);
-        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name_with_prefix, ts_path, is_eof);
+        let segment = Segment::new(duration, discontinuity, self.ts_no.clone(), ts_name_with_prefix, ts_path, is_eof, ts_pts);
 
         if self.need_record {
             self.update_vod_m3u8(&segment);
